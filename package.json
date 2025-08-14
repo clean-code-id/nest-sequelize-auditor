@@ -1,0 +1,71 @@
+{
+  "name": "@clean-code-id/nest-sequelize-auditor",
+  "version": "1.0.0",
+  "description": "Laravel-style audit trail package for NestJS + Sequelize ORM with AsyncLocalStorage context management",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier -w .",
+    "test": "vitest",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "nestjs",
+    "sequelize",
+    "audit",
+    "audit-trail",
+    "laravel",
+    "typescript",
+    "orm"
+  ],
+  "author": "Clean Code Indonesia",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/clean-code-id/nest-sequelize-auditor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/clean-code-id/nest-sequelize-auditor/issues"
+  },
+  "homepage": "https://github.com/clean-code-id/nest-sequelize-auditor#readme",
+  "peerDependencies": {
+    "@nestjs/common": "^10.0.0 || ^11.0.0",
+    "@nestjs/core": "^10.0.0 || ^11.0.0",
+    "sequelize": "^6.0.0",
+    "sequelize-typescript": "^2.0.0"
+  },
+  "devDependencies": {
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@types/node": "^24.2.1",
+    "@typescript-eslint/eslint-plugin": "^8.39.1",
+    "@typescript-eslint/parser": "^8.39.1",
+    "eslint": "^9.33.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.6.2",
+    "sequelize": "^6.37.7",
+    "sequelize-typescript": "^2.1.6",
+    "ts-node": "^10.9.2",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}
