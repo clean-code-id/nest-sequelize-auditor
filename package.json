@@ -1,7 +1,7 @@
 {
   "name": "@clean-code-id/nest-sequelize-auditor",
   "version": "1.0.0",
-  "description": "Laravel-style audit trail package for NestJS + Sequelize ORM with AsyncLocalStorage context management",
+  "description": "Audit trail package for NestJS + Sequelize ORM with AsyncLocalStorage context management",
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
@@ -32,7 +32,6 @@
     "sequelize",
     "audit",
     "audit-trail",
-    "laravel",
     "typescript",
     "orm"
   ],

@@ -1,10 +1,10 @@
 # @clean-code-id/nest-sequelize-auditor
 
-A Laravel-style audit trail package for NestJS + Sequelize ORM with AsyncLocalStorage context management.
+An audit trail package for NestJS + Sequelize ORM with AsyncLocalStorage context management.
 
 ## Features
 
-- 🚀 **Laravel-inspired** audit trail functionality
+- 🚀 **Comprehensive** audit trail functionality
 - 🔄 **Automatic tracking** of create, update, delete, and restore operations  
 - 🧵 **AsyncLocalStorage** for request context (userId, IP, user agent, URL, tags)
 - 🎛️ **Configurable** field exclusion and masking
