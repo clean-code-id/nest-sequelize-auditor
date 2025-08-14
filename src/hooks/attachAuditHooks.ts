@@ -4,9 +4,21 @@ import { Model, ModelCtor } from 'sequelize';
 import { RequestContext } from '../request-context.js';
 import { writeAudit } from '../utils/writeAudit.js';
 import type { AuditConfig } from '../types.js';
+import { AuditEvent } from '../types.js';
 
 // Global flag to track if audit model has been initialized
 let auditModelInitialized = false;
+
+// Helper function to check if an event should be audited
+function shouldAuditEvent(event: AuditEvent, config: AuditConfig): boolean {
+  // If no auditEvents specified, audit all events (default behavior)
+  if (!config.auditEvents || config.auditEvents.length === 0) {
+    return true;
+  }
+  
+  // Check if the event is in the allowed events list
+  return config.auditEvents.includes(event);
+}
 
 async function ensureAuditModelInitialized<T extends Model>(model: ModelCtor<T>): Promise<void> {
   if (auditModelInitialized) {
@@ -57,10 +69,14 @@ export function attachAuditHooks<T extends Model>(
 
   // After create hook
   model.addHook('afterCreate', async (instance: T) => {
+    if (!shouldAuditEvent(AuditEvent.CREATED, config)) {
+      return;
+    }
+    
     await ensureAuditModelInitialized(model);
     const context = RequestContext.getContext();
     await writeAudit({
-      event: 'create',
+      event: 'created',
       table: tableName,
       recordId: instance.get('id') as string | number,
       newValues: instance.dataValues,
@@ -71,10 +87,14 @@ export function attachAuditHooks<T extends Model>(
 
   // After update hook  
   model.addHook('afterUpdate', async (instance: T) => {
+    if (!shouldAuditEvent(AuditEvent.UPDATED, config)) {
+      return;
+    }
+    
     await ensureAuditModelInitialized(model);
     const context = RequestContext.getContext();
     await writeAudit({
-      event: 'update',
+      event: 'updated',
       table: tableName,
       recordId: instance.get('id') as string | number,
       oldValues: (instance as any)._previousDataValues,
@@ -86,10 +106,14 @@ export function attachAuditHooks<T extends Model>(
 
   // After delete hook
   model.addHook('afterDestroy', async (instance: T) => {
+    if (!shouldAuditEvent(AuditEvent.DELETED, config)) {
+      return;
+    }
+    
     await ensureAuditModelInitialized(model);
     const context = RequestContext.getContext();
     await writeAudit({
-      event: 'delete',
+      event: 'deleted',
       table: tableName,
       recordId: instance.get('id') as string | number,
       oldValues: instance.dataValues,
@@ -100,10 +124,14 @@ export function attachAuditHooks<T extends Model>(
 
   // After restore hook (for soft deletes)
   model.addHook('afterRestore', async (instance: T) => {
+    if (!shouldAuditEvent(AuditEvent.RESTORED, config)) {
+      return;
+    }
+    
     await ensureAuditModelInitialized(model);
     const context = RequestContext.getContext();
     await writeAudit({
-      event: 'restore',
+      event: 'restored',
       table: tableName,
       recordId: instance.get('id') as string | number,
       newValues: instance.dataValues,

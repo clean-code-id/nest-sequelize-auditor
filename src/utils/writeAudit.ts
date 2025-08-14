@@ -4,7 +4,7 @@ import type { AuditContext, AuditConfig } from '../types.js';
 import type { ModelCtor, Model } from 'sequelize';
 
 interface WriteAuditOptions {
-  event: 'create' | 'update' | 'delete' | 'restore';
+  event: 'created' | 'updated' | 'deleted' | 'restored';
   table: string;
   recordId: string | number;
   oldValues?: Record<string, any>;

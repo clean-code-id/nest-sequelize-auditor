@@ -1,17 +1,17 @@
 # @clean-code-id/nest-sequelize-auditor
 
-An audit trail package for NestJS + Sequelize ORM with AsyncLocalStorage context management.
+A seamless audit trail package for NestJS + Sequelize with automatic setup and request context tracking.
 
 ## Features
 
-- 🚀 **Comprehensive** audit trail functionality
-- 🔄 **Automatic tracking** of create, update, delete, and restore operations  
-- 🧵 **AsyncLocalStorage** for request context (userId, IP, user agent, URL, tags)
-- 🎛️ **Configurable** field exclusion and masking
-- 🏗️ **NestJS integration** with built-in interceptor
-- 🗄️ **Database support** for PostgreSQL and MySQL
-- 📦 **TypeScript** first with full type safety
-- ⚡ **Zero dependencies** (only peer dependencies)
+- 🎯 **Zero Configuration** - Works out of the box with automatic table creation
+- 🔄 **Automatic Tracking** - Create, update, delete, and restore operations
+- 🧵 **Request Context** - AsyncLocalStorage for userId, IP, user agent, URL, tags
+- 🎛️ **Selective Events** - Choose which operations to audit
+- 🎭 **Field Control** - Exclude or mask sensitive fields
+- 🗄️ **Multi-Database** - PostgreSQL and MySQL support
+- 📦 **TypeScript First** - Full type safety
+- ⚡ **Zero Dependencies** - Only peer dependencies
 
 ## Installation
 
@@ -19,17 +19,14 @@ An audit trail package for NestJS + Sequelize ORM with AsyncLocalStorage context
 npm install @clean-code-id/nest-sequelize-auditor
 ```
 
-### Peer Dependencies
-
-Make sure you have the following peer dependencies installed:
-
+**Peer Dependencies:**
 ```bash
 npm install @nestjs/common @nestjs/core sequelize sequelize-typescript
 ```
 
 ## Quick Setup
 
-### 1. Import the AuditModule
+### 1. Register the Module
 
 ```typescript
 import { Module } from '@nestjs/common';
@@ -37,56 +34,16 @@ import { AuditModule } from '@clean-code-id/nest-sequelize-auditor';
 
 @Module({
   imports: [
-    // Your Sequelize module setup
-    SequelizeModule.forRoot({
-      // your database config
-    }),
-    
-    // Simple setup - automatic audit model registration and table creation
-    AuditModule.forRoot(),
-    
-    // Or with custom options
-    AuditModule.forRoot({
-      autoSync: true,        // Auto-create audit table (default: true)
-      alterTable: false,     // Allow table alterations (default: false)
-      connection: 'default', // Sequelize connection name (default: 'default')
-      isGlobal: true,        // Register as global module (default: true)
-    }),
+    SequelizeModule.forRoot(/* your db config */),
+    AuditModule.forRoot(), // That's it! 🎉
   ],
 })
 export class AppModule {}
 ```
 
-### 2. Async Configuration (Advanced)
+### 2. Add Request Context (Optional)
 
 ```typescript
-import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { AuditModule } from '@clean-code-id/nest-sequelize-auditor';
-
-@Module({
-  imports: [
-    ConfigModule.forRoot(),
-    
-    // Async configuration with dependency injection
-    AuditModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        autoSync: configService.get('AUDIT_AUTO_SYNC', true),
-        alterTable: configService.get('AUDIT_ALTER_TABLE', false),
-        connection: configService.get('AUDIT_DB_CONNECTION', 'default'),
-      }),
-      inject: [ConfigService],
-    }),
-  ],
-})
-export class AppModule {}
-```
-
-### 3. Setup Request Context Interceptor
-
-```typescript
-import { Module } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { RequestContextInterceptor } from '@clean-code-id/nest-sequelize-auditor';
 
@@ -101,189 +58,125 @@ import { RequestContextInterceptor } from '@clean-code-id/nest-sequelize-auditor
 export class AppModule {}
 ```
 
-### 4. Attach Audit Hooks to Your Models
-
-Add `attachAuditHooks()` in your service's `onModuleInit()` method:
+### 3. Attach Audit Hooks
 
 ```typescript
-// user.service.ts
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import { InjectModel } from '@nestjs/sequelize';
 import { attachAuditHooks } from '@clean-code-id/nest-sequelize-auditor';
-import { User } from './user.model';
 
 @Injectable()
 export class UserService implements OnModuleInit {
-  constructor(
-    @InjectModel(User)
-    private userModel: typeof User,
-  ) {}
+  constructor(@InjectModel(User) private userModel: typeof User) {}
 
   onModuleInit() {
-    // 🎉 Attach audit hooks - everything else is automatic!
-    attachAuditHooks(this.userModel, {
-      exclude: ['createdAt', 'updatedAt'], // Fields to exclude from audit
-      mask: ['password'], // Fields to mask in audit trail
-    });
+    attachAuditHooks(this.userModel); // Automatic audit table creation!
   }
 
-  // Your service methods...
-  async createUser(userData: any) {
-    return this.userModel.create(userData); // Audit happens automatically!
+  // Your CRUD methods work normally - auditing happens automatically
+  async createUser(data: any) {
+    return this.userModel.create(data); // ✅ Audited
   }
 }
 ```
 
-**That's it!** The audit table will be created automatically, and all CRUD operations will be audited.
+**That's it!** The audit table is created automatically with proper snake_case columns.
 
-## Usage Examples
+## Advanced Configuration
 
-### Basic Usage
-
-Once configured, audit trails are created automatically:
+### Selective Audit Events
 
 ```typescript
-// This will automatically create an audit record
-const user = await User.create({
-  name: 'John Doe',
-  email: 'john@example.com',
-  password: 'secret123'
+import { attachAuditHooks, AuditEvent } from '@clean-code-id/nest-sequelize-auditor';
+
+attachAuditHooks(User, {
+  // Only audit deletions (great for compliance)
+  auditEvents: [AuditEvent.DELETED],
+  
+  // Or multiple events
+  auditEvents: [AuditEvent.CREATED, AuditEvent.UPDATED, AuditEvent.DELETED],
+  
+  // Exclude sensitive fields
+  exclude: ['password', 'created_at', 'updated_at'],
+  
+  // Mask fields (shows '***MASKED***')
+  mask: ['email', 'phone'],
 });
-
-// This will create an update audit record
-await user.update({ name: 'Jane Doe' });
-
-// This will create a delete audit record
-await user.destroy();
 ```
 
-### Manual Context Setting
-
-You can manually set audit context outside of HTTP requests:
+### Manual Context Setting (If needed)
 
 ```typescript
 import { RequestContext } from '@clean-code-id/nest-sequelize-auditor';
 
 await RequestContext.runWithContext(
-  {
-    userId: '123',
+  { 
+    userId: '123', 
     ip: '192.168.1.1',
-    userAgent: 'CLI Script',
-    url: '/background-job',
-    tags: { source: 'cron' }
+    tags: { source: 'admin-panel' }
   },
   async () => {
-    // Any operations here will use this context for auditing
-    await User.create({ name: 'Background User' });
+    await User.create({ name: 'Admin User' }); // Uses context
   }
 );
 ```
 
-## Database Migration Options
-
-### Option 1: Automatic (Recommended)
-The `AuditModule.forRoot()` automatically creates the audit table when `autoSync: true` (default).
-
-### Option 2: Manual Migration with Sequelize CLI
-
-```javascript
-// Generate migration file using our utility
-import { generateMigrationFileContent } from '@clean-code-id/nest-sequelize-auditor';
-import fs from 'fs';
-
-const timestamp = new Date().toISOString().replace(/[-:T]/g, '').split('.')[0];
-const filename = `${timestamp}-create-audits-table.js`;
-const content = generateMigrationFileContent('audits');
-
-fs.writeFileSync(`./migrations/${filename}`, content);
-```
-
-### Option 3: Manual SQL Script
-
-```javascript
-import { generateSQLScript } from '@clean-code-id/nest-sequelize-auditor';
-
-// For PostgreSQL
-const postgresScript = generateSQLScript('audits', 'postgres');
-
-// For MySQL  
-const mysqlScript = generateSQLScript('audits', 'mysql');
-```
-
-### Custom Audit Configuration
+### Async Module Configuration
 
 ```typescript
-import { attachAuditHooks } from '@clean-code-id/nest-sequelize-auditor';
-
-attachAuditHooks(User, {
-  exclude: [
-    'password',
-    'createdAt', 
-    'updatedAt',
-    'deletedAt'
-  ],
-  mask: [
-    'email', // Will show as '***MASKED***' in audit trail
-    'phone'
-  ]
-});
+AuditModule.forRootAsync({
+  imports: [ConfigModule],
+  useFactory: (config: ConfigService) => ({
+    autoSync: config.get('AUDIT_ENABLED', true),
+    connection: config.get('AUDIT_DB_CONNECTION', 'default'),
+  }),
+  inject: [ConfigService],
+})
 ```
 
-## Configuration Options
+## Available Events
 
-### AuditConfig
-
-```typescript
-interface AuditConfig {
-  exclude?: string[]; // Fields to completely exclude from audit trail
-  mask?: string[];    // Fields to mask with '***MASKED***'
-}
-```
-
-### AuditModelOptions
-
-```typescript
-interface AuditModelOptions {
-  tableName?: string; // Custom table name for audits
-  exclude?: string[]; // Global field exclusions
-  mask?: string[];    // Global field masking
-}
-```
+Past tense events representing completed actions:
+- `AuditEvent.CREATED` - Record was created
+- `AuditEvent.UPDATED` - Record was updated
+- `AuditEvent.DELETED` - Record was deleted
+- `AuditEvent.RESTORED` - Record was restored
 
 ## Database Schema
 
-The audit table will have the following structure:
+The audit table is automatically created with snake_case columns:
 
 ```sql
 CREATE TABLE audits (
-  id BIGSERIAL PRIMARY KEY,
-  event VARCHAR(10) NOT NULL CHECK (event IN ('create', 'update', 'delete', 'restore')),
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  event ENUM('created', 'updated', 'deleted', 'restored') NOT NULL,
   table_name VARCHAR(255) NOT NULL,
   record_id VARCHAR(255) NOT NULL,
-  old_values JSONB,
-  new_values JSONB,
+  old_values JSON,
+  new_values JSON,
   user_id VARCHAR(255),
   ip VARCHAR(45),
   user_agent TEXT,
   url VARCHAR(2048),
-  tags JSONB,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  tags JSON,
+  created_at TIMESTAMP DEFAULT NOW()
 );
 ```
 
-## API Reference
+## Configuration Reference
 
-### Functions
+```typescript
+interface AuditConfig {
+  exclude?: string[];         // Fields to exclude from audit
+  mask?: string[];           // Fields to mask with '***MASKED***'
+  auditEvents?: AuditEvent[]; // Specific events to audit
+}
 
-- `defineAuditModel(sequelize, options?)` - Creates the audit model
-- `attachAuditHooks(model, config?)` - Attaches audit hooks to a model
-- `RequestContext.getContext()` - Gets current audit context
-- `RequestContext.runWithContext(context, callback)` - Runs callback with context
-
-### Classes
-
-- `RequestContextInterceptor` - NestJS interceptor for automatic context setting
-- `AuditModel` - The audit trail model
+interface AuditModuleOptions {
+  autoSync?: boolean;    // Auto-create audit table (default: true)
+  connection?: string;   // Sequelize connection name
+  isGlobal?: boolean;    // Global module registration
+}
+```
 
 ## Requirements
 
@@ -295,7 +188,3 @@ CREATE TABLE audits (
 ## License
 
 MIT
-
-## Contributing
-
-Contributions are welcome! Please read our contributing guidelines and submit PRs to our GitHub repository.

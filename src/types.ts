@@ -1,10 +1,10 @@
 // Type definitions for the audit trail package
 
 export enum AuditEvent {
-  CREATED = 'create',
-  UPDATED = 'update',
-  DELETED = 'delete',
-  RESTORED = 'restore',
+  CREATED = 'created',
+  UPDATED = 'updated',
+  DELETED = 'deleted',
+  RESTORED = 'restored',
 }
 
 export interface AuditContext {
@@ -18,11 +18,12 @@ export interface AuditContext {
 export interface AuditConfig {
   exclude?: string[];
   mask?: string[];
+  auditEvents?: AuditEvent[];
 }
 
 export interface AuditRecord {
   id?: string | number;
-  event: 'create' | 'update' | 'delete' | 'restore';
+  event: 'created' | 'updated' | 'deleted' | 'restored';
   table: string;
   recordId: string | number;
   oldValues?: Record<string, any>;

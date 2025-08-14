@@ -15,10 +15,10 @@ export class AuditModel extends Model<AuditRecord> implements AuditRecord {
   id!: number;
 
   @Column({
-    type: DataTypes.ENUM('create', 'update', 'delete', 'restore'),
+    type: DataTypes.ENUM('created', 'updated', 'deleted', 'restored'),
     allowNull: false,
   })
-  event!: 'create' | 'update' | 'delete' | 'restore';
+  event!: 'created' | 'updated' | 'deleted' | 'restored';
 
   @Column({
     type: DataTypes.STRING,
@@ -94,7 +94,7 @@ export function defineAuditModel(sequelize: Sequelize, options: AuditModelOption
         allowNull: false,
       },
       event: {
-        type: DataTypes.ENUM('create', 'update', 'delete', 'restore'),
+        type: DataTypes.ENUM('created', 'updated', 'deleted', 'restored'),
         allowNull: false,
       },
       table: {

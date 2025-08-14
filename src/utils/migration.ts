@@ -14,7 +14,7 @@ export function generateAuditMigration(tableName = 'audits') {
           allowNull: false,
         },
         event: {
-          type: DataTypes.ENUM('create', 'update', 'delete', 'restore'),
+          type: DataTypes.ENUM('created', 'updated', 'deleted', 'restored'),
           allowNull: false,
         },
         table_name: {
@@ -92,7 +92,7 @@ module.exports = {
         allowNull: false,
       },
       event: {
-        type: Sequelize.ENUM('create', 'update', 'delete', 'restore'),
+        type: Sequelize.ENUM('created', 'updated', 'deleted', 'restored'),
         allowNull: false,
       },
       table_name: {
@@ -157,7 +157,7 @@ module.exports = {
 export function generateSQLScript(tableName = 'audits', dialect: 'postgres' | 'mysql' = 'postgres'): string {
   if (dialect === 'postgres') {
     return `-- PostgreSQL script for creating audits table
-CREATE TYPE audit_event AS ENUM ('create', 'update', 'delete', 'restore');
+CREATE TYPE audit_event AS ENUM ('created', 'updated', 'deleted', 'restored');
 
 CREATE TABLE ${tableName} (
     id BIGSERIAL PRIMARY KEY,
@@ -183,7 +183,7 @@ CREATE INDEX idx_${tableName}_event ON ${tableName}(event);`;
     return `-- MySQL script for creating audits table
 CREATE TABLE ${tableName} (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    event ENUM('create', 'update', 'delete', 'restore') NOT NULL,
+    event ENUM('created', 'updated', 'deleted', 'restored') NOT NULL,
     table_name VARCHAR(255) NOT NULL,
     record_id VARCHAR(255) NOT NULL,
     old_values JSON,
