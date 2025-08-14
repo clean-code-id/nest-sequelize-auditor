@@ -11,7 +11,8 @@ export class RequestContext {
   }
 
   static setContext(context: AuditContext): void {
-    // Implementation pending
+    const currentContext = contextStorage.getStore() || {};
+    contextStorage.enterWith({ ...currentContext, ...context });
   }
 
   static runWithContext<T>(context: AuditContext, callback: () => T): T {
@@ -19,8 +20,14 @@ export class RequestContext {
   }
 
   static updateContext(updates: Partial<AuditContext>): void {
-    // Implementation pending
+    const currentContext = contextStorage.getStore() || {};
+    contextStorage.enterWith({ ...currentContext, ...updates });
   }
 }
 
 export { contextStorage };
+
+// Convenience function for setting request context
+export function setRequestContext(context: AuditContext): void {
+  RequestContext.setContext(context);
+}

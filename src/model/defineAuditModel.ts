@@ -33,13 +33,13 @@ export class AuditModel extends Model<AuditRecord> implements AuditRecord {
   recordId!: string | number;
 
   @Column({
-    type: DataTypes.JSONB,
+    type: DataTypes.JSON,
     allowNull: true,
   })
   oldValues?: Record<string, any>;
 
   @Column({
-    type: DataTypes.JSONB,
+    type: DataTypes.JSON,
     allowNull: true,
   })
   newValues?: Record<string, any>;
@@ -69,7 +69,7 @@ export class AuditModel extends Model<AuditRecord> implements AuditRecord {
   url?: string;
 
   @Column({
-    type: DataTypes.JSONB,
+    type: DataTypes.JSON,
     allowNull: true,
   })
   tags?: Record<string, any>;
