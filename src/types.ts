@@ -33,3 +33,19 @@ export interface AuditModelOptions {
   exclude?: string[];
   mask?: string[];
 }
+
+export interface AuditModuleOptions {
+  connection?: string;
+  tableName?: string;
+  autoSync?: boolean;
+  alterTable?: boolean;
+  isGlobal?: boolean;
+}
+
+export interface AuditModuleAsyncOptions {
+  imports?: any[];
+  useFactory?: (...args: any[]) => Promise<AuditModuleOptions> | AuditModuleOptions;
+  inject?: any[];
+  connection?: string;
+  isGlobal?: boolean;
+}

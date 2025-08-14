@@ -29,24 +29,61 @@ npm install @nestjs/common @nestjs/core sequelize sequelize-typescript
 
 ## Quick Setup
 
-### 1. Create the Audit Model
+### 1. Import the AuditModule
 
 ```typescript
-import { defineAuditModel } from '@clean-code-id/nest-sequelize-auditor';
-import { Sequelize } from 'sequelize-typescript';
+import { Module } from '@nestjs/common';
+import { AuditModule } from '@clean-code-id/nest-sequelize-auditor';
 
-const sequelize = new Sequelize(/* your config */);
-
-// Create the audit model
-const AuditModel = defineAuditModel(sequelize, {
-  tableName: 'audits', // optional, defaults to 'audits'
-});
-
-// Add to your sequelize models
-sequelize.addModels([AuditModel]);
+@Module({
+  imports: [
+    // Your Sequelize module setup
+    SequelizeModule.forRoot({
+      // your database config
+    }),
+    
+    // Simple setup - automatic audit model registration and table creation
+    AuditModule.forRoot(),
+    
+    // Or with custom options
+    AuditModule.forRoot({
+      autoSync: true,        // Auto-create audit table (default: true)
+      alterTable: false,     // Allow table alterations (default: false)
+      connection: 'default', // Sequelize connection name (default: 'default')
+      isGlobal: true,        // Register as global module (default: true)
+    }),
+  ],
+})
+export class AppModule {}
 ```
 
-### 2. Setup Request Context Interceptor
+### 2. Async Configuration (Advanced)
+
+```typescript
+import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AuditModule } from '@clean-code-id/nest-sequelize-auditor';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot(),
+    
+    // Async configuration with dependency injection
+    AuditModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        autoSync: configService.get('AUDIT_AUTO_SYNC', true),
+        alterTable: configService.get('AUDIT_ALTER_TABLE', false),
+        connection: configService.get('AUDIT_DB_CONNECTION', 'default'),
+      }),
+      inject: [ConfigService],
+    }),
+  ],
+})
+export class AppModule {}
+```
+
+### 3. Setup Request Context Interceptor
 
 ```typescript
 import { Module } from '@nestjs/common';
@@ -64,7 +101,7 @@ import { RequestContextInterceptor } from '@clean-code-id/nest-sequelize-auditor
 export class AppModule {}
 ```
 
-### 3. Attach Audit Hooks to Your Models
+### 4. Attach Audit Hooks to Your Models
 
 ```typescript
 import { Table, Column, Model, PrimaryKey } from 'sequelize-typescript';
@@ -134,6 +171,37 @@ await RequestContext.runWithContext(
     await User.create({ name: 'Background User' });
   }
 );
+```
+
+## Database Migration Options
+
+### Option 1: Automatic (Recommended)
+The `AuditModule.forRoot()` automatically creates the audit table when `autoSync: true` (default).
+
+### Option 2: Manual Migration with Sequelize CLI
+
+```javascript
+// Generate migration file using our utility
+import { generateMigrationFileContent } from '@clean-code-id/nest-sequelize-auditor';
+import fs from 'fs';
+
+const timestamp = new Date().toISOString().replace(/[-:T]/g, '').split('.')[0];
+const filename = `${timestamp}-create-audits-table.js`;
+const content = generateMigrationFileContent('audits');
+
+fs.writeFileSync(`./migrations/${filename}`, content);
+```
+
+### Option 3: Manual SQL Script
+
+```javascript
+import { generateSQLScript } from '@clean-code-id/nest-sequelize-auditor';
+
+// For PostgreSQL
+const postgresScript = generateSQLScript('audits', 'postgres');
+
+// For MySQL  
+const mysqlScript = generateSQLScript('audits', 'mysql');
 ```
 
 ### Custom Audit Configuration
