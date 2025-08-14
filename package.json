@@ -1,5 +1,5 @@
 {
-  "name": "@clean-code-id/nest-sequelize-auditor",
+  "name": "@cleancode-id/nestjs-sequelize-auditor",
   "version": "1.0.0",
   "description": "Audit trail package for NestJS + Sequelize ORM with AsyncLocalStorage context management",
   "type": "module",

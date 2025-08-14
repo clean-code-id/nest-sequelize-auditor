@@ -1,4 +1,4 @@
-# @clean-code-id/nest-sequelize-auditor
+# @cleancode-id/nestjs-sequelize-auditor
 
 A seamless audit trail package for NestJS + Sequelize with automatic setup and request context tracking.
 
@@ -16,7 +16,7 @@ A seamless audit trail package for NestJS + Sequelize with automatic setup and r
 ## Installation
 
 ```bash
-npm install @clean-code-id/nest-sequelize-auditor
+npm install @cleancode-id/nestjs-sequelize-auditor
 ```
 
 **Peer Dependencies:**
@@ -31,7 +31,7 @@ npm install @nestjs/common @nestjs/core sequelize sequelize-typescript
 
 ```typescript
 import { Module } from '@nestjs/common';
-import { AuditModule } from '@clean-code-id/nest-sequelize-auditor';
+import { AuditModule } from '@cleancode-id/nestjs-sequelize-auditor';
 
 @Module({
   imports: [
@@ -46,7 +46,7 @@ export class AppModule {}
 
 ```typescript
 import { APP_INTERCEPTOR } from '@nestjs/core';
-import { RequestContextInterceptor } from '@clean-code-id/nest-sequelize-auditor';
+import { RequestContextInterceptor } from '@cleancode-id/nestjs-sequelize-auditor';
 
 @Module({
   providers: [
@@ -63,7 +63,7 @@ export class AppModule {}
 
 ```typescript
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import { attachAuditHooks } from '@clean-code-id/nest-sequelize-auditor';
+import { attachAuditHooks } from '@cleancode-id/nestjs-sequelize-auditor';
 
 @Injectable()
 export class UserService implements OnModuleInit {
@@ -87,7 +87,7 @@ export class UserService implements OnModuleInit {
 ### Selective Audit Events
 
 ```typescript
-import { attachAuditHooks, AuditEvent } from '@clean-code-id/nest-sequelize-auditor';
+import { attachAuditHooks, AuditEvent } from '@cleancode-id/nestjs-sequelize-auditor';
 
 attachAuditHooks(User, {
   // Only audit deletions (great for compliance)
@@ -107,7 +107,7 @@ attachAuditHooks(User, {
 ### Manual Context Setting (If needed)
 
 ```typescript
-import { RequestContext } from '@clean-code-id/nest-sequelize-auditor';
+import { RequestContext } from '@cleancode-id/nestjs-sequelize-auditor';
 
 await RequestContext.runWithContext(
   {
