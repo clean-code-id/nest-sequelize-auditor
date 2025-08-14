@@ -17,39 +17,33 @@ export function generateAuditMigration(tableName = 'audits') {
           type: DataTypes.ENUM('create', 'update', 'delete', 'restore'),
           allowNull: false,
         },
-        table: {
+        table_name: {
           type: DataTypes.STRING,
           allowNull: false,
-          field: 'table_name', // Use snake_case for database
         },
-        recordId: {
+        record_id: {
           type: DataTypes.STRING,
           allowNull: false,
-          field: 'record_id',
         },
-        oldValues: {
+        old_values: {
           type: DataTypes.JSON,
           allowNull: true,
-          field: 'old_values',
         },
-        newValues: {
+        new_values: {
           type: DataTypes.JSON,
           allowNull: true,
-          field: 'new_values',
         },
-        userId: {
+        user_id: {
           type: DataTypes.STRING,
           allowNull: true,
-          field: 'user_id',
         },
         ip: {
           type: DataTypes.STRING(45), // IPv6 compatible
           allowNull: true,
         },
-        userAgent: {
+        user_agent: {
           type: DataTypes.TEXT,
           allowNull: true,
-          field: 'user_agent',
         },
         url: {
           type: DataTypes.STRING(2048),
@@ -59,11 +53,10 @@ export function generateAuditMigration(tableName = 'audits') {
           type: DataTypes.JSON,
           allowNull: true,
         },
-        createdAt: {
+        created_at: {
           type: DataTypes.DATE,
           allowNull: false,
           defaultValue: DataTypes.NOW,
-          field: 'created_at',
         },
       });
 

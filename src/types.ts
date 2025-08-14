@@ -1,5 +1,12 @@
 // Type definitions for the audit trail package
 
+export enum AuditEvent {
+  CREATED = 'create',
+  UPDATED = 'update',
+  DELETED = 'delete',
+  RESTORED = 'restore',
+}
+
 export interface AuditContext {
   userId?: string | number;
   ip?: string;

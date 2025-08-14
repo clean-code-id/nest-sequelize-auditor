@@ -103,32 +103,38 @@ export class AppModule {}
 
 ### 4. Attach Audit Hooks to Your Models
 
+Add `attachAuditHooks()` in your service's `onModuleInit()` method:
+
 ```typescript
-import { Table, Column, Model, PrimaryKey } from 'sequelize-typescript';
+// user.service.ts
+import { Injectable, OnModuleInit } from '@nestjs/common';
+import { InjectModel } from '@nestjs/sequelize';
 import { attachAuditHooks } from '@clean-code-id/nest-sequelize-auditor';
+import { User } from './user.model';
 
-@Table
-export class User extends Model {
-  @PrimaryKey
-  @Column
-  id: number;
+@Injectable()
+export class UserService implements OnModuleInit {
+  constructor(
+    @InjectModel(User)
+    private userModel: typeof User,
+  ) {}
 
-  @Column
-  name: string;
+  onModuleInit() {
+    // 🎉 Attach audit hooks - everything else is automatic!
+    attachAuditHooks(this.userModel, {
+      exclude: ['createdAt', 'updatedAt'], // Fields to exclude from audit
+      mask: ['password'], // Fields to mask in audit trail
+    });
+  }
 
-  @Column
-  email: string;
-
-  @Column
-  password: string;
+  // Your service methods...
+  async createUser(userData: any) {
+    return this.userModel.create(userData); // Audit happens automatically!
+  }
 }
-
-// Attach audit hooks with configuration
-attachAuditHooks(User, {
-  exclude: ['createdAt', 'updatedAt'], // Fields to exclude from audit
-  mask: ['password'], // Fields to mask in audit trail
-});
 ```
+
+**That's it!** The audit table will be created automatically, and all CRUD operations will be audited.
 
 ## Usage Examples
 

@@ -82,67 +82,75 @@ export class AuditModel extends Model<AuditRecord> implements AuditRecord {
   createdAt!: Date;
 }
 
-export function defineAuditModel(
-  sequelize: Sequelize,
-  options: AuditModelOptions = {}
-): any {
-  // Define audit model using raw Sequelize
-  const AuditModel = sequelize.define(options.tableName || 'audits', {
-    id: {
-      type: DataTypes.BIGINT,
-      primaryKey: true,
-      autoIncrement: true,
-      allowNull: false,
+export function defineAuditModel(sequelize: Sequelize, options: AuditModelOptions = {}): any {
+  // Define audit model using raw Sequelize with proper snake_case column names
+  const AuditModel = sequelize.define(
+    options.tableName || 'audits',
+    {
+      id: {
+        type: DataTypes.BIGINT,
+        primaryKey: true,
+        autoIncrement: true,
+        allowNull: false,
+      },
+      event: {
+        type: DataTypes.ENUM('create', 'update', 'delete', 'restore'),
+        allowNull: false,
+      },
+      table: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        field: 'table_name',
+      },
+      recordId: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        field: 'record_id',
+      },
+      oldValues: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        field: 'old_values',
+      },
+      newValues: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        field: 'new_values',
+      },
+      userId: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: 'user_id',
+      },
+      ip: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      userAgent: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        field: 'user_agent',
+      },
+      url: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      tags: {
+        type: DataTypes.JSON,
+        allowNull: true,
+      },
+      createdAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW,
+        field: 'created_at',
+      },
     },
-    event: {
-      type: DataTypes.ENUM('create', 'update', 'delete', 'restore'),
-      allowNull: false,
-    },
-    table: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
-    recordId: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
-    oldValues: {
-      type: DataTypes.JSON,
-      allowNull: true,
-    },
-    newValues: {
-      type: DataTypes.JSON,
-      allowNull: true,
-    },
-    userId: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    ip: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    userAgent: {
-      type: DataTypes.TEXT,
-      allowNull: true,
-    },
-    url: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    tags: {
-      type: DataTypes.JSON,
-      allowNull: true,
-    },
-    createdAt: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      defaultValue: DataTypes.NOW,
-    },
-  }, {
-    tableName: options.tableName || 'audits',
-    timestamps: false,
-  });
-  
+    {
+      tableName: options.tableName || 'audits',
+      timestamps: false,
+    }
+  );
+
   return AuditModel;
 }
