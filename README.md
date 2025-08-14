@@ -20,6 +20,7 @@ npm install @clean-code-id/nest-sequelize-auditor
 ```
 
 **Peer Dependencies:**
+
 ```bash
 npm install @nestjs/common @nestjs/core sequelize sequelize-typescript
 ```
@@ -91,15 +92,15 @@ import { attachAuditHooks, AuditEvent } from '@clean-code-id/nest-sequelize-audi
 attachAuditHooks(User, {
   // Only audit deletions (great for compliance)
   auditEvents: [AuditEvent.DELETED],
-  
+
   // Or multiple events
   auditEvents: [AuditEvent.CREATED, AuditEvent.UPDATED, AuditEvent.DELETED],
-  
-  // Exclude sensitive fields
-  exclude: ['password', 'created_at', 'updated_at'],
-  
+
+  // Exclude fields
+  exclude: ['created_at', 'updated_at'],
+
   // Mask fields (shows '***MASKED***')
-  mask: ['email', 'phone'],
+  mask: ['password'],
 });
 ```
 
@@ -109,10 +110,10 @@ attachAuditHooks(User, {
 import { RequestContext } from '@clean-code-id/nest-sequelize-auditor';
 
 await RequestContext.runWithContext(
-  { 
-    userId: '123', 
+  {
+    userId: '123',
     ip: '192.168.1.1',
-    tags: { source: 'admin-panel' }
+    tags: { source: 'admin-panel' },
   },
   async () => {
     await User.create({ name: 'Admin User' }); // Uses context
@@ -130,12 +131,13 @@ AuditModule.forRootAsync({
     connection: config.get('AUDIT_DB_CONNECTION', 'default'),
   }),
   inject: [ConfigService],
-})
+});
 ```
 
 ## Available Events
 
 Past tense events representing completed actions:
+
 - `AuditEvent.CREATED` - Record was created
 - `AuditEvent.UPDATED` - Record was updated
 - `AuditEvent.DELETED` - Record was deleted
@@ -166,15 +168,15 @@ CREATE TABLE audits (
 
 ```typescript
 interface AuditConfig {
-  exclude?: string[];         // Fields to exclude from audit
-  mask?: string[];           // Fields to mask with '***MASKED***'
+  exclude?: string[]; // Fields to exclude from audit
+  mask?: string[]; // Fields to mask with '***MASKED***'
   auditEvents?: AuditEvent[]; // Specific events to audit
 }
 
 interface AuditModuleOptions {
-  autoSync?: boolean;    // Auto-create audit table (default: true)
-  connection?: string;   // Sequelize connection name
-  isGlobal?: boolean;    // Global module registration
+  autoSync?: boolean; // Auto-create audit table (default: true)
+  connection?: string; // Sequelize connection name
+  isGlobal?: boolean; // Global module registration
 }
 ```
 
