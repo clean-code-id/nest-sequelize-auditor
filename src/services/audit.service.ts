@@ -26,15 +26,20 @@ export class AuditService {
       // Set the global audit model for the package
       setAuditModel(AuditModel);
 
-      // Auto-sync the audit table if enabled
+      // Auto-sync the audit table if enabled (controlled by AuditModule.forRoot options)
       if (this.options.autoSync !== false) {
         await AuditModel.sync({ alter: this.options.alterTable ?? false });
+        // eslint-disable-next-line no-console
+        console.log('🎉 AuditModule: Audit table created successfully via autoSync!');
+      } else {
+        // eslint-disable-next-line no-console
+        console.log('📋 AuditModule: Audit model registered (autoSync disabled - table not created)');
       }
 
       this.isInitialized = true;
-      console.log('🎉 AuditService: Audit model registered and table created successfully!');
     } catch (error) {
-      console.error('❌ AuditService: Failed to initialize audit model:', error);
+      // eslint-disable-next-line no-console
+      console.error('❌ AuditModule: Failed to initialize audit model:', error);
       throw error;
     }
   }
