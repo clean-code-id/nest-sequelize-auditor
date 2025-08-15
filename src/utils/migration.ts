@@ -77,7 +77,6 @@ export function generateAuditMigration(tableName = 'audits') {
  * Generates a JavaScript migration file content
  */
 export function generateMigrationFileContent(tableName = 'audits'): string {
-  const timestamp = new Date().toISOString().replace(/[-:T]/g, '').split('.')[0];
   
   return `'use strict';
 
