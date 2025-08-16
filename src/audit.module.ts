@@ -1,6 +1,8 @@
 import { DynamicModule, Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import type { AuditModuleOptions, AuditModuleAsyncOptions } from './types.js';
 import { AuditService } from './services/audit.service.js';
+import { RequestContextInterceptor } from './interceptors/RequestContextInterceptor.js';
 import { setGlobalAuditOptions } from './hooks/attachAuditHooks.js';
 
 @Module({})
@@ -20,8 +22,13 @@ export class AuditModule {
           useValue: options,
         },
         AuditService,
+        RequestContextInterceptor,
+        {
+          provide: APP_INTERCEPTOR,
+          useClass: RequestContextInterceptor,
+        },
       ],
-      exports: [AuditService],
+      exports: [AuditService, RequestContextInterceptor],
       global: options.isGlobal ?? true,
     };
   }
@@ -45,8 +52,13 @@ export class AuditModule {
           inject: options.inject || [],
         },
         AuditService,
+        RequestContextInterceptor,
+        {
+          provide: APP_INTERCEPTOR,
+          useClass: RequestContextInterceptor,
+        },
       ],
-      exports: [AuditService],
+      exports: [AuditService, RequestContextInterceptor],
       global: options.isGlobal ?? true,
     };
   }

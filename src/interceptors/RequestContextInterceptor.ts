@@ -1,18 +1,26 @@
 // NestJS interceptor to automatically set audit context from request
 
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler, Inject } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { RequestContext } from '../request-context.js';
-import type { AuditContext } from '../types.js';
+import { UserResolverFactory } from '../resolvers/user-resolver.js';
+import type { AuditContext, AuditModuleOptions } from '../types.js';
 
 @Injectable()
 export class RequestContextInterceptor implements NestInterceptor {
+  private userResolver: any;
+
+  constructor(@Inject('AUDIT_OPTIONS') private options: AuditModuleOptions) {
+    // Create user resolver based on configuration
+    this.userResolver = UserResolverFactory.create(this.options.auth || { type: 'passport' });
+  }
+
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest();
     
     const auditContext: AuditContext = {
-      // Extract user ID from request (customize based on your auth strategy)
-      userId: request.user?.id || request.user?.sub,
+      // Extract user ID using configurable resolver
+      userId: this.userResolver.resolve(context),
       ip: request.ip || request.connection?.remoteAddress,
       userAgent: request.get('User-Agent'),
       url: request.originalUrl || request.url,

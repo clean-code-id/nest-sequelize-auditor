@@ -48,6 +48,13 @@ export interface AuditModuleOptions {
   autoSync?: boolean;
   alterTable?: boolean;
   isGlobal?: boolean;
+  auth?: AuthConfig;
+}
+
+export interface AuthConfig {
+  type?: 'passport' | 'custom'; // Default: 'passport'
+  userProperty?: string; // Default: 'user' (req.user)
+  userIdField?: string; // Default: 'id' (user.id)
 }
 
 export interface AuditModuleAsyncOptions {
