@@ -9,6 +9,7 @@ A seamless audit trail package for NestJS + Sequelize with automatic setup and r
 - 🧵 **Request Context** - AsyncLocalStorage for userId, IP, user agent, URL, tags, and actor tracking
 - 🎛️ **Selective Events** - Choose which operations to audit
 - 🎭 **Field Control** - Exclude or mask sensitive fields
+- 🗜️ **Dirty Field Tracking** - Log only changed fields or complete state
 - 🗄️ **Multi-Database** - PostgreSQL and MySQL support
 - 📦 **TypeScript First** - Full type safety
 - ⚡ **Zero Dependencies** - Only peer dependencies
@@ -102,6 +103,69 @@ attachAuditHooks(User, {
   // Mask fields (shows '***MASKED***')
   mask: ['password'],
 });
+```
+
+### Dirty Field Tracking (onlyDirty)
+
+By default, audit logs capture the complete state of records. Enable `onlyDirty` to log only fields that actually changed:
+
+```typescript
+// Global configuration - affects all models
+AuditModule.forRoot({
+  onlyDirty: true, // Only log changed fields globally
+});
+
+// Per-model configuration
+attachAuditHooks(User, {
+  onlyDirty: false, // Override: log full state for User model (compliance)
+  exclude: ['created_at', 'updated_at'],
+  mask: ['password'],
+});
+
+attachAuditHooks(Product, {
+  // Uses global onlyDirty: true setting
+  auditEvents: [AuditEvent.UPDATED], // Only track updates
+});
+```
+
+**Benefits of onlyDirty:**
+- 🗜️ **Reduced Storage** - Only changed fields are stored
+- 🔍 **Clearer Logs** - Focus on what actually changed
+- ⚡ **Better Performance** - Less data serialization
+- 📊 **Compliance Ready** - Track specific changes for audit requirements
+
+**Examples:**
+
+```typescript
+// Before (onlyDirty: false) - Full state logged
+{
+  "old_values": {
+    "id": 1,
+    "name": "John Doe", 
+    "email": "john@example.com",
+    "phone": "123-456-7890",
+    "status": "active"
+  },
+  "new_values": {
+    "id": 1,
+    "name": "John Smith",        // ← changed
+    "email": "john@example.com", // ← unchanged but logged
+    "phone": "987-654-3210",     // ← changed  
+    "status": "active"           // ← unchanged but logged
+  }
+}
+
+// After (onlyDirty: true) - Only changed fields
+{
+  "old_values": {
+    "name": "John Doe",
+    "phone": "123-456-7890"
+  },
+  "new_values": {
+    "name": "John Smith",
+    "phone": "987-654-3210" 
+  }
+}
 ```
 
 ### Manual Context Setting (If needed)
@@ -226,6 +290,7 @@ interface AuditConfig {
   exclude?: string[]; // Fields to exclude from audit
   mask?: string[]; // Fields to mask with '***MASKED***'
   auditEvents?: AuditEvent[]; // Specific events to audit
+  onlyDirty?: boolean; // Log only changed fields (default: false)
 }
 
 interface AuthConfig {
@@ -239,6 +304,7 @@ interface AuditModuleOptions {
   connection?: string; // Sequelize connection name
   isGlobal?: boolean; // Global module registration
   auth?: AuthConfig; // Authentication configuration
+  onlyDirty?: boolean; // Global setting for dirty field tracking (default: false)
 }
 ```
 
