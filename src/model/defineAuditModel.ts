@@ -48,7 +48,7 @@ export class AuditModel extends Model<AuditRecord> implements AuditRecord {
     type: DataTypes.STRING,
     allowNull: true,
   })
-  userId?: string | number;
+  actorId?: string | number;
 
   @Column({
     type: DataTypes.STRING,
@@ -117,10 +117,10 @@ export function defineAuditModel(sequelize: Sequelize, options: AuditModelOption
         allowNull: true,
         field: 'new_values',
       },
-      userId: {
+      actorId: {
         type: DataTypes.STRING,
         allowNull: true,
-        field: 'user_id',
+        field: 'actor_id',
       },
       ip: {
         type: DataTypes.STRING,

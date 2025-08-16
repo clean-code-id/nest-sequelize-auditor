@@ -6,7 +6,7 @@ A seamless audit trail package for NestJS + Sequelize with automatic setup and r
 
 - 🎯 **Zero Configuration** - Works out of the box with automatic table creation
 - 🔄 **Automatic Tracking** - Create, update, delete, and restore operations
-- 🧵 **Request Context** - AsyncLocalStorage for userId, IP, user agent, URL, tags
+- 🧵 **Request Context** - AsyncLocalStorage for userId, IP, user agent, URL, tags, and actor tracking
 - 🎛️ **Selective Events** - Choose which operations to audit
 - 🎭 **Field Control** - Exclude or mask sensitive fields
 - 🗄️ **Multi-Database** - PostgreSQL and MySQL support
@@ -111,7 +111,7 @@ import { RequestContext } from '@cleancode-id/nestjs-sequelize-auditor';
 
 await RequestContext.runWithContext(
   {
-    userId: '123',
+    actorId: '123', // ID of the user who performed the action
     ip: '192.168.1.1',
     tags: { source: 'admin-panel' },
   },
@@ -119,6 +119,30 @@ await RequestContext.runWithContext(
     await User.create({ name: 'Admin User' }); // Uses context
   }
 );
+```
+
+### Authentication Configuration
+
+Configure how the package extracts authenticated user information:
+
+```typescript
+AuditModule.forRoot({
+  auth: {
+    type: 'passport', // 'passport' or 'custom' (default: 'passport')
+    userProperty: 'user', // Property on request object (default: 'user')
+    userIdField: 'id', // Field within user object (default: 'id')
+  },
+});
+
+// Examples for different auth setups:
+// Standard Passport.js with req.user.id
+AuditModule.forRoot({
+  auth: {
+    type: 'passport',
+    userProperty: 'user',
+    userIdField: 'id',
+  },
+});
 ```
 
 ### Async Module Configuration
@@ -129,6 +153,11 @@ AuditModule.forRootAsync({
   useFactory: (config: ConfigService) => ({
     autoSync: config.get('AUDIT_ENABLED', true),
     connection: config.get('AUDIT_DB_CONNECTION', 'default'),
+    auth: {
+      type: 'passport',
+      userProperty: 'user',
+      userIdField: config.get('AUTH_USER_ID_FIELD', 'id'),
+    },
   }),
   inject: [ConfigService],
 });
@@ -155,12 +184,38 @@ CREATE TABLE audits (
   record_id VARCHAR(255) NOT NULL,
   old_values JSON,
   new_values JSON,
-  user_id VARCHAR(255),
+  actor_id VARCHAR(255), -- ID of the actor who performed the action
   ip VARCHAR(45),
   user_agent TEXT,
   url VARCHAR(2048),
   tags JSON,
   created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+## Actor Tracking
+
+The package automatically tracks the actor (user) who performed each action using the `actor_id` field:
+
+```typescript
+// Example: Set actor ID in controller  
+@Controller('users')
+export class UserController {
+  @Post()
+  async createUser(@Body() userData: any, @Req() req: any) {
+    // Actor ID is automatically extracted from authenticated user (req.user.id)
+    return this.userService.create(userData);
+  }
+}
+
+// Example: Manual actor ID setting for system operations
+await RequestContext.runWithContext(
+  {
+    actorId: 'system-migration-job', // ID of who/what performed the action
+  },
+  async () => {
+    await User.bulkCreate(migrationData);
+  }
 );
 ```
 
@@ -173,10 +228,17 @@ interface AuditConfig {
   auditEvents?: AuditEvent[]; // Specific events to audit
 }
 
+interface AuthConfig {
+  type?: 'passport' | 'custom'; // Authentication strategy (default: 'passport')
+  userProperty?: string; // Request property containing user (default: 'user')
+  userIdField?: string; // Field within user object for ID (default: 'id')
+}
+
 interface AuditModuleOptions {
   autoSync?: boolean; // Auto-create audit table (default: true)
   connection?: string; // Sequelize connection name
   isGlobal?: boolean; // Global module registration
+  auth?: AuthConfig; // Authentication configuration
 }
 ```
 

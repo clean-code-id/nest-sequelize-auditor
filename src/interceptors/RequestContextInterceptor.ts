@@ -20,7 +20,7 @@ export class RequestContextInterceptor implements NestInterceptor {
     
     const auditContext: AuditContext = {
       // Extract user ID using configurable resolver
-      userId: this.userResolver.resolve(context),
+      actorId: this.userResolver.resolve(context),
       ip: request.ip || request.connection?.remoteAddress,
       userAgent: request.get('User-Agent'),
       url: request.originalUrl || request.url,

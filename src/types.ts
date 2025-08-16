@@ -8,7 +8,7 @@ export enum AuditEvent {
 }
 
 export interface AuditContext {
-  userId?: string | number;
+  actorId?: string | number;
   ip?: string;
   userAgent?: string;
   url?: string;
@@ -28,7 +28,7 @@ export interface AuditRecord {
   recordId: string | number;
   oldValues?: Record<string, any>;
   newValues?: Record<string, any>;
-  userId?: string | number;
+  actorId?: string | number;
   ip?: string;
   userAgent?: string;
   url?: string;

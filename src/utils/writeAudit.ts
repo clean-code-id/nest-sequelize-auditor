@@ -47,7 +47,7 @@ export async function writeAudit(options: WriteAuditOptions): Promise<void> {
       recordId,
       oldValues: processedOldValues,
       newValues: processedNewValues,
-      userId: context?.userId,
+      actorId: context?.actorId,
       ip: context?.ip,
       userAgent: context?.userAgent,
       url: context?.url,
