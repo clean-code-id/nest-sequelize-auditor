@@ -19,6 +19,7 @@ export interface AuditConfig {
   exclude?: string[];
   mask?: string[];
   auditEvents?: AuditEvent[];
+  onlyDirty?: boolean;
 }
 
 export interface AuditRecord {
@@ -49,6 +50,7 @@ export interface AuditModuleOptions {
   alterTable?: boolean;
   isGlobal?: boolean;
   auth?: AuthConfig;
+  onlyDirty?: boolean;
 }
 
 export interface AuthConfig {

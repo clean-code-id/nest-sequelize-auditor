@@ -114,6 +114,7 @@ export function attachAuditHooks<T extends Model>(
       newValues: instance.dataValues,
       context,
       config,
+      globalConfig: globalAuditOptions,
     });
   });
 
@@ -132,6 +133,7 @@ export function attachAuditHooks<T extends Model>(
       newValues: instance.dataValues,
       context,
       config,
+      globalConfig: globalAuditOptions,
     });
   });
 
@@ -149,6 +151,7 @@ export function attachAuditHooks<T extends Model>(
       oldValues: instance.dataValues,
       context,
       config,
+      globalConfig: globalAuditOptions,
     });
   });
 
@@ -166,6 +169,7 @@ export function attachAuditHooks<T extends Model>(
       newValues: instance.dataValues,
       context,
       config,
+      globalConfig: globalAuditOptions,
     });
   });
 }

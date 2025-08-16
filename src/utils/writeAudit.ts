@@ -1,6 +1,6 @@
 // Utility function to write audit records to the database
 
-import type { AuditContext, AuditConfig } from '../types.js';
+import type { AuditContext, AuditConfig, AuditModuleOptions } from '../types.js';
 import type { ModelCtor, Model } from 'sequelize';
 
 interface WriteAuditOptions {
@@ -11,6 +11,7 @@ interface WriteAuditOptions {
   newValues?: Record<string, any>;
   context?: AuditContext;
   config?: AuditConfig;
+  globalConfig?: AuditModuleOptions;
 }
 
 // Global audit model reference - will be set by the consumer
@@ -34,11 +35,16 @@ export async function writeAudit(options: WriteAuditOptions): Promise<void> {
     newValues,
     context,
     config = {},
+    globalConfig,
   } = options;
 
-  // Apply field exclusions and masking
-  const processedOldValues = processValues(oldValues, config);
-  const processedNewValues = processValues(newValues, config);
+  // Apply dirty field filtering, exclusions and masking
+  const { processedOldValues, processedNewValues } = processValues(
+    oldValues,
+    newValues,
+    config,
+    globalConfig
+  );
 
   try {
     await globalAuditModel.create({
@@ -61,6 +67,72 @@ export async function writeAudit(options: WriteAuditOptions): Promise<void> {
 }
 
 function processValues(
+  oldValues: Record<string, any> | undefined,
+  newValues: Record<string, any> | undefined,
+  config: AuditConfig,
+  globalConfig?: AuditModuleOptions
+): { processedOldValues?: Record<string, any>; processedNewValues?: Record<string, any> } {
+  const onlyDirty = config.onlyDirty ?? globalConfig?.onlyDirty ?? false;
+  
+  let finalOldValues = oldValues;
+  let finalNewValues = newValues;
+  
+  // Apply dirty field filtering if enabled and we have both old and new values
+  if (onlyDirty && oldValues && newValues) {
+    const changedFields = getChangedFields(oldValues, newValues);
+    if (changedFields.length > 0) {
+      finalOldValues = pickFields(oldValues, changedFields);
+      finalNewValues = pickFields(newValues, changedFields);
+    } else {
+      // No changes detected, return empty objects
+      finalOldValues = {};
+      finalNewValues = {};
+    }
+  }
+  
+  return {
+    processedOldValues: applyExcludeAndMask(finalOldValues, config),
+    processedNewValues: applyExcludeAndMask(finalNewValues, config),
+  };
+}
+
+function getChangedFields(
+  oldValues: Record<string, any>,
+  newValues: Record<string, any>
+): string[] {
+  const changedFields: string[] = [];
+  
+  // Check all fields in newValues
+  for (const field in newValues) {
+    if (oldValues[field] !== newValues[field]) {
+      changedFields.push(field);
+    }
+  }
+  
+  // Check for fields that were removed (exist in old but not in new)
+  for (const field in oldValues) {
+    if (!(field in newValues) && !changedFields.includes(field)) {
+      changedFields.push(field);
+    }
+  }
+  
+  return changedFields;
+}
+
+function pickFields(
+  values: Record<string, any>,
+  fields: string[]
+): Record<string, any> {
+  const result: Record<string, any> = {};
+  fields.forEach((field) => {
+    if (field in values) {
+      result[field] = values[field];
+    }
+  });
+  return result;
+}
+
+function applyExcludeAndMask(
   values: Record<string, any> | undefined,
   config: AuditConfig
 ): Record<string, any> | undefined {
