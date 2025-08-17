@@ -1,320 +1,206 @@
 # @cleancode-id/nestjs-sequelize-auditor
 
-A seamless audit trail package for NestJS + Sequelize with automatic setup and request context tracking.
+🔍 **Automatic audit trails for NestJS + Sequelize** with zero configuration and full request context tracking.
 
-## Features
+## ✨ Features
 
-- 🎯 **Zero Configuration** - Works out of the box with automatic table creation
-- 🔄 **Automatic Tracking** - Create, update, delete, and restore operations
-- 🧵 **Request Context** - AsyncLocalStorage for userId, IP, user agent, URL, tags, and actor tracking
-- 🎛️ **Selective Events** - Choose which operations to audit
-- 🎭 **Field Control** - Exclude or mask sensitive fields
-- 🗜️ **Dirty Field Tracking** - Log only changed fields or complete state
-- 🗄️ **Multi-Database** - PostgreSQL and MySQL support
-- 📦 **TypeScript First** - Full type safety
-- ⚡ **Zero Dependencies** - Only peer dependencies
+- 🎯 **Zero Setup** - Auto-creates audit table, hooks into your models automatically
+- 🔄 **Complete Tracking** - CREATE, UPDATE, DELETE, RESTORE operations
+- 🧵 **Smart Context** - Captures user, IP, URL, tags from HTTP requests via AsyncLocalStorage
+- 🎛️ **Selective Auditing** - Choose which events and fields to track
+- 🗜️ **Dirty Field Mode** - Log only changed fields vs complete state (configurable)
+- 🎭 **Data Security** - Exclude or mask sensitive fields (passwords, PII)
+- 🗄️ **Multi-DB Support** - PostgreSQL, MySQL
+- 📦 **TypeScript Native** - Full type safety, zero runtime dependencies
 
-## Installation
+## 🚀 Setup Guide
 
+**Install:**
 ```bash
 npm install @cleancode-id/nestjs-sequelize-auditor
 ```
 
-**Peer Dependencies:**
-
-```bash
-npm install @nestjs/common @nestjs/core sequelize sequelize-typescript
-```
-
-## Quick Setup
-
-### 1. Register the Module
+### Step 1: Configure AppModule
 
 ```typescript
-import { Module } from '@nestjs/common';
+// app.module.ts
 import { AuditModule } from '@cleancode-id/nestjs-sequelize-auditor';
 
 @Module({
   imports: [
     SequelizeModule.forRoot(/* your db config */),
-    AuditModule.forRoot(), // That's it! 🎉
+    AuditModule.forRoot({
+      autoSync: true,        // Auto-create audit table (default: true)
+      onlyDirty: true,       // Log only changed fields by default (default: false)
+      auth: {
+        type: 'passport',         // 'passport' or 'custom' (default: 'passport')
+        userProperty: 'user',     // req[userProperty] (default: 'user')
+        userIdField: 'id',        // req.user[userIdField] (default: 'id')
+      },
+    }),
   ],
+  // RequestContextInterceptor auto-registered for HTTP context capture
 })
 export class AppModule {}
 ```
 
-### 2. Add Request Context (Optional)
+**Module Options:**
+- `autoSync` - Automatically creates the audit table on startup
+- `onlyDirty` - Default for all models: log only changed fields vs full state
+- `connection` - Which Sequelize connection to use (default: 'default')
+- `auth.type` - How to extract user: `'passport'` (Passport.js) or `'custom'`
+- `auth.userProperty` - Request property containing user data (default: `req.user`)
+- `auth.userIdField` - Field within user object for ID (default: `req.user.id`)
 
+**Environment-based config:**
 ```typescript
-import { APP_INTERCEPTOR } from '@nestjs/core';
-import { RequestContextInterceptor } from '@cleancode-id/nestjs-sequelize-auditor';
-
-@Module({
-  providers: [
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: RequestContextInterceptor,
-    },
-  ],
+AuditModule.forRootAsync({
+  imports: [ConfigModule],
+  useFactory: (config: ConfigService) => ({
+    autoSync: config.get('AUDIT_ENABLED', true),
+    onlyDirty: config.get('AUDIT_ONLY_DIRTY', false),
+    auth: { userIdField: config.get('AUTH_USER_ID_FIELD', 'id') },
+  }),
+  inject: [ConfigService],
 })
-export class AppModule {}
 ```
 
-### 3. Attach Audit Hooks
+### Step 2: Enable Audit for Your Models
 
 ```typescript
+// user.service.ts
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import { attachAuditHooks } from '@cleancode-id/nestjs-sequelize-auditor';
+import { attachAuditHooks, AuditEvent } from '@cleancode-id/nestjs-sequelize-auditor';
 
 @Injectable()
 export class UserService implements OnModuleInit {
   constructor(@InjectModel(User) private userModel: typeof User) {}
 
   onModuleInit() {
-    attachAuditHooks(this.userModel); // Automatic audit table creation!
+    // Basic audit - uses global settings
+    attachAuditHooks(this.userModel);
+    
+    // Or with custom configuration
+    attachAuditHooks(this.userModel, {
+      auditEvents: [AuditEvent.CREATED, AuditEvent.UPDATED, AuditEvent.DELETED],
+      exclude: ['id', 'createdAt', 'updatedAt'], // Skip these fields
+      mask: ['password', 'ssn'],                 // Show as '***MASKED***'
+      onlyDirty: false,                          // Override global: log full state
+    });
   }
 
-  // Your CRUD methods work normally - auditing happens automatically
   async createUser(data: any) {
-    return this.userModel.create(data); // ✅ Audited
+    return this.userModel.create(data); // ✅ Automatically audited!
   }
 }
 ```
 
-**That's it!** The audit table is created automatically with proper snake_case columns.
+**Per-Model Options:**
+- `auditEvents` - Which operations to track: `CREATED`, `UPDATED`, `DELETED`, `RESTORED`
+- `exclude` - Fields to completely skip from audit logs
+- `mask` - Fields to show as `'***MASKED***'` (passwords, PII)
+- `onlyDirty` - Override global setting for this model
 
-## Advanced Configuration
-
-### Selective Audit Events
-
+### `onlyDirty` Comparison
 ```typescript
-import { attachAuditHooks, AuditEvent } from '@cleancode-id/nestjs-sequelize-auditor';
-
-attachAuditHooks(User, {
-  // Only audit deletions (great for compliance)
-  auditEvents: [AuditEvent.DELETED],
-
-  // Or multiple events
-  auditEvents: [AuditEvent.CREATED, AuditEvent.UPDATED, AuditEvent.DELETED],
-
-  // Exclude fields
-  exclude: ['created_at', 'updated_at'],
-
-  // Mask fields (shows '***MASKED***')
-  mask: ['password'],
-});
-```
-
-### Dirty Field Tracking (onlyDirty)
-
-By default, audit logs capture the complete state of records. Enable `onlyDirty` to log only fields that actually changed:
-
-```typescript
-// Global configuration - affects all models
-AuditModule.forRoot({
-  onlyDirty: true, // Only log changed fields globally
-});
-
-// Per-model configuration
-attachAuditHooks(User, {
-  onlyDirty: false, // Override: log full state for User model (compliance)
-  exclude: ['created_at', 'updated_at'],
-  mask: ['password'],
-});
-
-attachAuditHooks(Product, {
-  // Uses global onlyDirty: true setting
-  auditEvents: [AuditEvent.UPDATED], // Only track updates
-});
-```
-
-**Benefits of onlyDirty:**
-- 🗜️ **Reduced Storage** - Only changed fields are stored
-- 🔍 **Clearer Logs** - Focus on what actually changed
-- ⚡ **Better Performance** - Less data serialization
-- 📊 **Compliance Ready** - Track specific changes for audit requirements
-
-**Examples:**
-
-```typescript
-// Before (onlyDirty: false) - Full state logged
+// onlyDirty: false (default) - Full record state
 {
-  "old_values": {
-    "id": 1,
-    "name": "John Doe", 
-    "email": "john@example.com",
-    "phone": "123-456-7890",
-    "status": "active"
-  },
-  "new_values": {
-    "id": 1,
-    "name": "John Smith",        // ← changed
-    "email": "john@example.com", // ← unchanged but logged
-    "phone": "987-654-3210",     // ← changed  
-    "status": "active"           // ← unchanged but logged
-  }
+  "old_values": { "name": "John", "email": "john@test.com", "status": "active" },
+  "new_values": { "name": "Jane", "email": "john@test.com", "status": "active" }
 }
 
-// After (onlyDirty: true) - Only changed fields
+// onlyDirty: true - Only changed fields  
 {
-  "old_values": {
-    "name": "John Doe",
-    "phone": "123-456-7890"
-  },
-  "new_values": {
-    "name": "John Smith",
-    "phone": "987-654-3210" 
-  }
+  "old_values": { "name": "John" },
+  "new_values": { "name": "Jane" }
 }
 ```
 
-### Manual Context Setting (If needed)
-
+### Manual Context (Background Jobs, Migrations)
 ```typescript
 import { RequestContext } from '@cleancode-id/nestjs-sequelize-auditor';
 
+// For system operations
 await RequestContext.runWithContext(
-  {
-    actorId: '123', // ID of the user who performed the action
-    ip: '192.168.1.1',
-    tags: { source: 'admin-panel' },
-  },
+  { actorId: 'migration-script', tags: { source: 'data-migration' } },
   async () => {
-    await User.create({ name: 'Admin User' }); // Uses context
+    await User.bulkCreate(migrationData); // Audited with custom context
   }
 );
 ```
 
-### Authentication Configuration
+## 📊 Audit Data Structure
 
-Configure how the package extracts authenticated user information:
+**Available Events:**
+- `CREATED`, `UPDATED`, `DELETED`, `RESTORED`
 
-```typescript
-AuditModule.forRoot({
-  auth: {
-    type: 'passport', // 'passport' or 'custom' (default: 'passport')
-    userProperty: 'user', // Property on request object (default: 'user')
-    userIdField: 'id', // Field within user object (default: 'id')
-  },
-});
-
-// Examples for different auth setups:
-// Standard Passport.js with req.user.id
-AuditModule.forRoot({
-  auth: {
-    type: 'passport',
-    userProperty: 'user',
-    userIdField: 'id',
-  },
-});
-```
-
-### Async Module Configuration
-
-```typescript
-AuditModule.forRootAsync({
-  imports: [ConfigModule],
-  useFactory: (config: ConfigService) => ({
-    autoSync: config.get('AUDIT_ENABLED', true),
-    connection: config.get('AUDIT_DB_CONNECTION', 'default'),
-    auth: {
-      type: 'passport',
-      userProperty: 'user',
-      userIdField: config.get('AUTH_USER_ID_FIELD', 'id'),
-    },
-  }),
-  inject: [ConfigService],
-});
-```
-
-## Available Events
-
-Past tense events representing completed actions:
-
-- `AuditEvent.CREATED` - Record was created
-- `AuditEvent.UPDATED` - Record was updated
-- `AuditEvent.DELETED` - Record was deleted
-- `AuditEvent.RESTORED` - Record was restored
-
-## Database Schema
-
-The audit table is automatically created with snake_case columns:
-
+**Auto-generated Audit Table:**
 ```sql
 CREATE TABLE audits (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  event ENUM('created', 'updated', 'deleted', 'restored') NOT NULL,
-  table_name VARCHAR(255) NOT NULL,
-  record_id VARCHAR(255) NOT NULL,
-  old_values JSON,
-  new_values JSON,
-  actor_id VARCHAR(255), -- ID of the actor who performed the action
-  ip VARCHAR(45),
-  user_agent TEXT,
-  url VARCHAR(2048),
-  tags JSON,
-  created_at TIMESTAMP DEFAULT NOW()
+  event ENUM('created', 'updated', 'deleted', 'restored'),
+  table_name VARCHAR(255), -- Source table
+  record_id VARCHAR(255),  -- ID of the changed record
+  old_values JSON,         -- Previous state
+  new_values JSON,         -- New state  
+  actor_id VARCHAR(255),   -- Who made the change (from req.user.id)
+  ip VARCHAR(45),          -- Request IP
+  user_agent TEXT,         -- Browser/client info
+  url VARCHAR(2048),       -- Request URL
+  tags JSON,               -- Custom metadata
+  created_at TIMESTAMP     -- When it happened
 );
 ```
 
-## Actor Tracking
-
-The package automatically tracks the actor (user) who performed each action using the `actor_id` field:
-
-```typescript
-// Example: Set actor ID in controller  
-@Controller('users')
-export class UserController {
-  @Post()
-  async createUser(@Body() userData: any, @Req() req: any) {
-    // Actor ID is automatically extracted from authenticated user (req.user.id)
-    return this.userService.create(userData);
-  }
+**Example Audit Record:**
+```json
+{
+  "id": 1,
+  "event": "updated",
+  "table_name": "users",
+  "record_id": "123",
+  "old_values": { "email": "old@example.com" },
+  "new_values": { "email": "new@example.com" },
+  "actor_id": "456",
+  "ip": "192.168.1.100",
+  "url": "/api/users/123",
+  "created_at": "2024-01-15T10:30:00Z"
 }
-
-// Example: Manual actor ID setting for system operations
-await RequestContext.runWithContext(
-  {
-    actorId: 'system-migration-job', // ID of who/what performed the action
-  },
-  async () => {
-    await User.bulkCreate(migrationData);
-  }
-);
 ```
 
-## Configuration Reference
+## 🔧 API Reference
 
 ```typescript
+// Core types
+enum AuditEvent { CREATED, UPDATED, DELETED, RESTORED }
+
 interface AuditConfig {
-  exclude?: string[]; // Fields to exclude from audit
-  mask?: string[]; // Fields to mask with '***MASKED***'
-  auditEvents?: AuditEvent[]; // Specific events to audit
-  onlyDirty?: boolean; // Log only changed fields (default: false)
-}
-
-interface AuthConfig {
-  type?: 'passport' | 'custom'; // Authentication strategy (default: 'passport')
-  userProperty?: string; // Request property containing user (default: 'user')
-  userIdField?: string; // Field within user object for ID (default: 'id')
+  exclude?: string[];        // Fields to skip
+  mask?: string[];          // Fields to show as '***MASKED***'
+  auditEvents?: AuditEvent[]; // Which operations to track
+  onlyDirty?: boolean;      // Log only changed fields
 }
 
 interface AuditModuleOptions {
-  autoSync?: boolean; // Auto-create audit table (default: true)
-  connection?: string; // Sequelize connection name
-  isGlobal?: boolean; // Global module registration
-  auth?: AuthConfig; // Authentication configuration
-  onlyDirty?: boolean; // Global setting for dirty field tracking (default: false)
+  autoSync?: boolean;       // Auto-create audit table (default: true)
+  onlyDirty?: boolean;     // Global dirty field setting (default: false)
+  auth?: {
+    type?: 'passport' | 'custom';    // Auth strategy (default: 'passport')  
+    userProperty?: string;           // req[userProperty] (default: 'user')
+    userIdField?: string;           // req.user[userIdField] (default: 'id')
+  };
 }
+
+// Main functions
+AuditModule.forRoot(options?: AuditModuleOptions)
+AuditModule.forRootAsync({ useFactory, imports, inject })
+attachAuditHooks(model: typeof Model, config?: AuditConfig)
+RequestContext.runWithContext(context, fn)
 ```
 
-## Requirements
+## 📋 Requirements
 
-- Node.js 16+
-- NestJS 10+
-- Sequelize 6+
-- PostgreSQL or MySQL
-
-## License
-
-MIT
+- **Node.js** 16+
+- **NestJS** 10+  
+- **Sequelize** 6+
+- **Database**: PostgreSQL or MySQL
