@@ -24,13 +24,13 @@ export class AuditModel extends Model<AuditRecord> implements AuditRecord {
     type: DataTypes.STRING,
     allowNull: false,
   })
-  table!: string;
+  auditableType!: string;
 
   @Column({
     type: DataTypes.STRING,
     allowNull: false,
   })
-  recordId!: string | number;
+  auditableId!: string | number;
 
   @Column({
     type: DataTypes.JSON,
@@ -48,7 +48,13 @@ export class AuditModel extends Model<AuditRecord> implements AuditRecord {
     type: DataTypes.STRING,
     allowNull: true,
   })
-  actorId?: string | number;
+  actorableType?: string;
+
+  @Column({
+    type: DataTypes.STRING,
+    allowNull: true,
+  })
+  actorableId?: string | number;
 
   @Column({
     type: DataTypes.STRING,
@@ -97,15 +103,15 @@ export function defineAuditModel(sequelize: Sequelize, options: AuditModelOption
         type: DataTypes.ENUM('created', 'updated', 'deleted', 'restored'),
         allowNull: false,
       },
-      table: {
+      auditableType: {
         type: DataTypes.STRING,
         allowNull: false,
-        field: 'table_name',
+        field: 'auditable_type',
       },
-      recordId: {
+      auditableId: {
         type: DataTypes.STRING,
         allowNull: false,
-        field: 'record_id',
+        field: 'auditable_id',
       },
       oldValues: {
         type: DataTypes.JSON,
@@ -117,10 +123,15 @@ export function defineAuditModel(sequelize: Sequelize, options: AuditModelOption
         allowNull: true,
         field: 'new_values',
       },
-      actorId: {
+      actorableType: {
         type: DataTypes.STRING,
         allowNull: true,
-        field: 'actor_id',
+        field: 'actorable_type',
+      },
+      actorableId: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: 'actorable_id',
       },
       ip: {
         type: DataTypes.STRING,

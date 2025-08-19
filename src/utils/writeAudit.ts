@@ -5,8 +5,8 @@ import type { ModelCtor, Model } from 'sequelize';
 
 interface WriteAuditOptions {
   event: 'created' | 'updated' | 'deleted' | 'restored';
-  table: string;
-  recordId: string | number;
+  auditableType: string;
+  auditableId: string | number;
   oldValues?: Record<string, any>;
   newValues?: Record<string, any>;
   context?: AuditContext;
@@ -29,8 +29,8 @@ export async function writeAudit(options: WriteAuditOptions): Promise<void> {
 
   const {
     event,
-    table,
-    recordId,
+    auditableType,
+    auditableId,
     oldValues,
     newValues,
     context,
@@ -49,11 +49,12 @@ export async function writeAudit(options: WriteAuditOptions): Promise<void> {
   try {
     await globalAuditModel.create({
       event,
-      table,
-      recordId,
+      auditableType,
+      auditableId,
       oldValues: processedOldValues,
       newValues: processedNewValues,
-      actorId: context?.actorId,
+      actorableType: context?.actorableType,
+      actorableId: context?.actorableId,
       ip: context?.ip,
       userAgent: context?.userAgent,
       url: context?.url,

@@ -4,19 +4,21 @@ import { ExecutionContext } from '@nestjs/common';
 import type { AuthConfig } from '../types.js';
 
 export interface UserResolver {
-  resolve(context: ExecutionContext): any;
+  resolve(context: ExecutionContext): { actorableId: any; actorableType: string } | null;
 }
 
 export class PassportUserResolver implements UserResolver {
   private userProperty: string;
   private userIdField: string;
+  private actorModel: string;
 
   constructor(config: AuthConfig = {}) {
     this.userProperty = config.userProperty || 'user';
     this.userIdField = config.userIdField || 'id';
+    this.actorModel = config.actorModel || 'User';
   }
 
-  resolve(context: ExecutionContext): any {
+  resolve(context: ExecutionContext): { actorableId: any; actorableType: string } | null {
     const request = context.switchToHttp().getRequest();
     const user = request[this.userProperty];
     
@@ -24,8 +26,15 @@ export class PassportUserResolver implements UserResolver {
       return null;
     }
 
-    // Support nested field paths like 'user_id' or 'sub'
-    return user[this.userIdField] || null;
+    const actorableId = user[this.userIdField];
+    if (!actorableId) {
+      return null;
+    }
+
+    return {
+      actorableId,
+      actorableType: this.actorModel
+    };
   }
 }
 

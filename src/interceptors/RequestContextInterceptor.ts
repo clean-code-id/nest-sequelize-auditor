@@ -18,9 +18,12 @@ export class RequestContextInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest();
     
+    // Extract actor info using configurable resolver
+    const actorInfo = this.userResolver.resolve(context);
+    
     const auditContext: AuditContext = {
-      // Extract user ID using configurable resolver
-      actorId: this.userResolver.resolve(context),
+      actorableType: actorInfo?.actorableType,
+      actorableId: actorInfo?.actorableId,
       ip: request.ip || request.connection?.remoteAddress,
       userAgent: request.get('User-Agent'),
       url: request.originalUrl || request.url,

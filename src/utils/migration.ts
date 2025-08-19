@@ -17,11 +17,11 @@ export function generateAuditMigration(tableName = 'audits') {
           type: DataTypes.ENUM('created', 'updated', 'deleted', 'restored'),
           allowNull: false,
         },
-        table_name: {
+        auditable_type: {
           type: DataTypes.STRING,
           allowNull: false,
         },
-        record_id: {
+        auditable_id: {
           type: DataTypes.STRING,
           allowNull: false,
         },
@@ -33,7 +33,11 @@ export function generateAuditMigration(tableName = 'audits') {
           type: DataTypes.JSON,
           allowNull: true,
         },
-        user_id: {
+        actorable_type: {
+          type: DataTypes.STRING,
+          allowNull: true,
+        },
+        actorable_id: {
           type: DataTypes.STRING,
           allowNull: true,
         },
@@ -61,8 +65,8 @@ export function generateAuditMigration(tableName = 'audits') {
       });
 
       // Add indexes for better query performance
-      await queryInterface.addIndex(tableName, ['table_name', 'record_id']);
-      await queryInterface.addIndex(tableName, ['user_id']);
+      await queryInterface.addIndex(tableName, ['auditable_type', 'auditable_id']);
+      await queryInterface.addIndex(tableName, ['actorable_type', 'actorable_id']);
       await queryInterface.addIndex(tableName, ['created_at']);
       await queryInterface.addIndex(tableName, ['event']);
     },
@@ -94,11 +98,11 @@ module.exports = {
         type: Sequelize.ENUM('created', 'updated', 'deleted', 'restored'),
         allowNull: false,
       },
-      table_name: {
+      auditable_type: {
         type: Sequelize.STRING,
         allowNull: false,
       },
-      record_id: {
+      auditable_id: {
         type: Sequelize.STRING,
         allowNull: false,
       },
@@ -110,7 +114,11 @@ module.exports = {
         type: Sequelize.JSON,
         allowNull: true,
       },
-      user_id: {
+      actorable_type: {
+        type: Sequelize.STRING,
+        allowNull: true,
+      },
+      actorable_id: {
         type: Sequelize.STRING,
         allowNull: true,
       },
@@ -138,8 +146,8 @@ module.exports = {
     });
 
     // Add indexes for better query performance
-    await queryInterface.addIndex('${tableName}', ['table_name', 'record_id']);
-    await queryInterface.addIndex('${tableName}', ['user_id']);
+    await queryInterface.addIndex('${tableName}', ['auditable_type', 'auditable_id']);
+    await queryInterface.addIndex('${tableName}', ['actorable_type', 'actorable_id']);
     await queryInterface.addIndex('${tableName}', ['created_at']);
     await queryInterface.addIndex('${tableName}', ['event']);
   },
@@ -161,11 +169,12 @@ CREATE TYPE audit_event AS ENUM ('created', 'updated', 'deleted', 'restored');
 CREATE TABLE ${tableName} (
     id BIGSERIAL PRIMARY KEY,
     event audit_event NOT NULL,
-    table_name VARCHAR(255) NOT NULL,
-    record_id VARCHAR(255) NOT NULL,
+    auditable_type VARCHAR(255) NOT NULL,
+    auditable_id VARCHAR(255) NOT NULL,
     old_values JSONB,
     new_values JSONB,
-    user_id VARCHAR(255),
+    actorable_type VARCHAR(255),
+    actorable_id VARCHAR(255),
     ip VARCHAR(45),
     user_agent TEXT,
     url VARCHAR(2048),
@@ -174,8 +183,8 @@ CREATE TABLE ${tableName} (
 );
 
 -- Indexes for better performance
-CREATE INDEX idx_${tableName}_table_record ON ${tableName}(table_name, record_id);
-CREATE INDEX idx_${tableName}_user_id ON ${tableName}(user_id);
+CREATE INDEX idx_${tableName}_auditable ON ${tableName}(auditable_type, auditable_id);
+CREATE INDEX idx_${tableName}_actorable ON ${tableName}(actorable_type, actorable_id);
 CREATE INDEX idx_${tableName}_created_at ON ${tableName}(created_at);
 CREATE INDEX idx_${tableName}_event ON ${tableName}(event);`;
   } else {
@@ -183,11 +192,12 @@ CREATE INDEX idx_${tableName}_event ON ${tableName}(event);`;
 CREATE TABLE ${tableName} (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     event ENUM('created', 'updated', 'deleted', 'restored') NOT NULL,
-    table_name VARCHAR(255) NOT NULL,
-    record_id VARCHAR(255) NOT NULL,
+    auditable_type VARCHAR(255) NOT NULL,
+    auditable_id VARCHAR(255) NOT NULL,
     old_values JSON,
     new_values JSON,
-    user_id VARCHAR(255),
+    actorable_type VARCHAR(255),
+    actorable_id VARCHAR(255),
     ip VARCHAR(45),
     user_agent TEXT,
     url VARCHAR(2048),
@@ -196,8 +206,8 @@ CREATE TABLE ${tableName} (
 );
 
 -- Indexes for better performance
-CREATE INDEX idx_${tableName}_table_record ON ${tableName}(table_name, record_id);
-CREATE INDEX idx_${tableName}_user_id ON ${tableName}(user_id);
+CREATE INDEX idx_${tableName}_auditable ON ${tableName}(auditable_type, auditable_id);
+CREATE INDEX idx_${tableName}_actorable ON ${tableName}(actorable_type, actorable_id);
 CREATE INDEX idx_${tableName}_created_at ON ${tableName}(created_at);
 CREATE INDEX idx_${tableName}_event ON ${tableName}(event);`;
   }

@@ -8,7 +8,8 @@ export enum AuditEvent {
 }
 
 export interface AuditContext {
-  actorId?: string | number;
+  actorableType?: string;
+  actorableId?: string | number;
   ip?: string;
   userAgent?: string;
   url?: string;
@@ -25,11 +26,12 @@ export interface AuditConfig {
 export interface AuditRecord {
   id?: string | number;
   event: 'created' | 'updated' | 'deleted' | 'restored';
-  table: string;
-  recordId: string | number;
+  auditableType: string;
+  auditableId: string | number;
   oldValues?: Record<string, any>;
   newValues?: Record<string, any>;
-  actorId?: string | number;
+  actorableType?: string;
+  actorableId?: string | number;
   ip?: string;
   userAgent?: string;
   url?: string;
@@ -57,6 +59,7 @@ export interface AuthConfig {
   type?: 'passport' | 'custom'; // Default: 'passport'
   userProperty?: string; // Default: 'user' (req.user)
   userIdField?: string; // Default: 'id' (user.id)
+  actorModel?: string; // Default: 'User' - the model name of the actor
 }
 
 export interface AuditModuleAsyncOptions {

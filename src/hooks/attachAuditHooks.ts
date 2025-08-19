@@ -98,7 +98,7 @@ export function attachAuditHooks<T extends Model>(
     // eslint-disable-next-line no-console
     console.error('❌ AuditSystem: Failed to initialize audit model:', error);
   });
-  const tableName = model.tableName;
+  const modelName = model.name;
 
   // After create hook
   model.addHook('afterCreate', async (instance: T) => {
@@ -109,8 +109,8 @@ export function attachAuditHooks<T extends Model>(
     const context = RequestContext.getContext();
     await writeAudit({
       event: 'created',
-      table: tableName,
-      recordId: instance.get('id') as string | number,
+      auditableType: modelName,
+      auditableId: instance.get('id') as string | number,
       newValues: instance.dataValues,
       context,
       config,
@@ -127,8 +127,8 @@ export function attachAuditHooks<T extends Model>(
     const context = RequestContext.getContext();
     await writeAudit({
       event: 'updated',
-      table: tableName,
-      recordId: instance.get('id') as string | number,
+      auditableType: modelName,
+      auditableId: instance.get('id') as string | number,
       oldValues: (instance as any)._previousDataValues,
       newValues: instance.dataValues,
       context,
@@ -146,8 +146,8 @@ export function attachAuditHooks<T extends Model>(
     const context = RequestContext.getContext();
     await writeAudit({
       event: 'deleted',
-      table: tableName,
-      recordId: instance.get('id') as string | number,
+      auditableType: modelName,
+      auditableId: instance.get('id') as string | number,
       oldValues: instance.dataValues,
       context,
       config,
@@ -164,8 +164,8 @@ export function attachAuditHooks<T extends Model>(
     const context = RequestContext.getContext();
     await writeAudit({
       event: 'restored',
-      table: tableName,
-      recordId: instance.get('id') as string | number,
+      auditableType: modelName,
+      auditableId: instance.get('id') as string | number,
       newValues: instance.dataValues,
       context,
       config,
