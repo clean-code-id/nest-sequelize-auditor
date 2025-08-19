@@ -17,6 +17,10 @@ export default [
         ecmaVersion: 2022,
         sourceType: 'module',
       },
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+      },
     },
     rules: {
       ...tseslint.configs.recommended.rules,
