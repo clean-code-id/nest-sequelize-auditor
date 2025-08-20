@@ -8,7 +8,7 @@
 ## ✨ Features
 
 - 🎯 **Zero Setup** - Auto-creates audit table, hooks into your models automatically
-- 🔄 **Complete Tracking** - CREATE, UPDATE, DELETE, RESTORE operations
+- 🔄 **Complete Tracking** - CREATE, UPDATE, DELETE, RESTORE operations + **Bulk Operations** (with performance considerations)
 - 🧵 **Smart Context** - Captures user, IP, URL, tags from HTTP requests via AsyncLocalStorage
 - 🎭 **Polymorphic Support** - Track any entity type and actor type with Sequelize conventions
 - 🎛️ **Selective Auditing** - Choose which events and fields to track
@@ -18,12 +18,52 @@
 - 📦 **TypeScript Native** - Full type safety, zero runtime dependencies
 - 🚀 **Production Ready** - Battle-tested with comprehensive test suite
 
-## 🆕 What's New in v1.2.0
+## 🆕 What's New in v2.0.0
 
-- **Polymorphic Entities**: Track any model type (`User`, `Product`, `Order`) using Sequelize conventions
-- **Polymorphic Actors**: Support different actor types (`User`, `Admin`, `System`) with configurable models  
-- **Enhanced Schema**: Database uses proper `auditable_type`/`auditable_id` and `actorable_type`/`actorable_id` fields
-- **Better Performance**: Optimized indexing for polymorphic queries
+- **🔄 Bulk Operations Support**: Individual record tracking for `bulkCreate`, `bulkUpdate`, and `bulkDestroy`
+- **🎯 Enhanced onlyDirty Mode**: Improved dirty field detection for both individual and bulk operations
+- **⚡ Performance Optimizations**: Intelligent query handling with comprehensive performance guidelines
+- **🎭 Polymorphic Architecture**: Full support for multiple entity types and actor types
+- **📚 Comprehensive Documentation**: Complete performance guidelines and best practices
+
+## 📚 Table of Contents
+
+> 💡 **New to bulk operations?** Be sure to read [⚠️ Performance & Limitations](#️-performance--limitations) for important performance considerations.
+
+- [🚀 Quick Start](#-quick-start)
+  - [Installation](#installation)
+  - [Basic Setup](#basic-setup)
+  - [Enable Auditing for Models](#enable-auditing-for-models)
+- [🔧 Configuration](#-configuration)
+  - [Module Configuration](#module-configuration)
+  - [Per-Model Configuration](#per-model-configuration)
+- [🎭 Polymorphic Support](#-polymorphic-support)
+  - [Different Entity Types](#different-entity-types)
+  - [Different Actor Types](#different-actor-types)
+- [📦 Bulk Operations Support](#-bulk-operations-support)
+  - [Bulk Create](#bulk-create)
+  - [Bulk Update - Individual Record Tracking](#bulk-update---individual-record-tracking)
+  - [Bulk Delete - Individual Record Tracking](#bulk-delete---individual-record-tracking)
+  - [Performance Considerations](#performance-considerations)
+  - [onlyDirty Mode with Bulk Operations](#onlydirty-mode-with-bulk-operations)
+  - [Bulk Operation Context](#bulk-operation-context)
+- [📊 Database Schema](#-database-schema)
+  - [Audit Table Structure](#audit-table-structure)
+  - [Example Audit Records](#example-audit-records)
+- [⚠️ Performance & Limitations](#️-performance--limitations)
+  - [Bulk Operations Performance Impact](#bulk-operations-performance-impact)
+  - [Recommended Patterns](#recommended-patterns)
+  - [Memory Considerations](#memory-considerations)
+- [🛠️ Advanced Usage](#️-advanced-usage)
+  - [Async Configuration](#async-configuration)
+  - [Manual Context Management](#manual-context-management)
+  - [Field Filtering Examples](#field-filtering-examples)
+  - [Querying Audit Data](#querying-audit-data)
+- [🧪 Testing](#-testing)
+- [📋 Requirements](#-requirements)
+- [🤝 Contributing](#-contributing)
+- [📝 License](#-license)
+- [🙏 Acknowledgments](#-acknowledgments)
 
 ## 🚀 Quick Start
 
@@ -158,6 +198,147 @@ await RequestContext.runWithContext(
 );
 ```
 
+## 📦 Bulk Operations Support
+
+The audit system automatically tracks Sequelize bulk operations with **individual record tracking** for complete audit trails.
+
+> ⚠️ **PERFORMANCE WARNING**: Bulk update and delete operations trigger additional SELECT queries to capture old values before the operation. This can significantly impact performance for large datasets. Use with caution in high-volume environments.
+
+### Bulk Create
+For `bulkCreate`, individual audit records are created for each instance:
+
+```typescript
+// This will create 3 separate audit records
+const users = await User.bulkCreate([
+  { name: 'John', email: 'john@example.com' },
+  { name: 'Jane', email: 'jane@example.com' },  
+  { name: 'Bob', email: 'bob@example.com' },
+]);
+
+// Each audit record will have:
+// - event: "created"
+// - auditableType: "User"
+// - auditableId: [individual user ID]  
+// - newValues: { name: "John", email: "john@example.com" }
+// - tags: { bulkOperation: true, affectedCount: 3 }
+```
+
+### Bulk Update - Individual Record Tracking
+⚠️ **Performance Impact**: Each bulk update triggers `SELECT * FROM table WHERE condition` before the update to capture old values.
+
+```typescript
+// Updates 2 users: performs SELECT + UPDATE queries
+await User.update(
+  { status: 'inactive', phone: '555-9999' },
+  { where: { id: [4, 7] } }
+);
+
+// Creates 2 separate audit records:
+// Record 1:
+// - event: "updated"
+// - auditableType: "User" 
+// - auditableId: 4
+// - oldValues: { status: "active", phone: "555-1234" }  // ← Fetched via SELECT
+// - newValues: { status: "inactive", phone: "555-9999" }
+// - tags: { bulkOperation: true, affectedCount: 2 }
+
+// Record 2: 
+// - auditableId: 7, oldValues: { status: "active", phone: "555-5678" }, etc.
+```
+
+### Bulk Delete - Individual Record Tracking  
+⚠️ **Performance Impact**: Each bulk delete triggers `SELECT * FROM table WHERE condition` before deletion to capture old values.
+
+```typescript
+// Deletes 2 users: performs SELECT + DELETE queries
+await User.destroy({
+  where: { status: 'archived' }
+});
+
+// Creates 2 separate audit records:
+// Record 1:
+// - event: "deleted"
+// - auditableType: "User"
+// - auditableId: 4  
+// - oldValues: { name: "John", status: "archived", ... }  // ← Fetched via SELECT
+// - newValues: null
+// - tags: { bulkOperation: true, affectedCount: 2 }
+
+// Record 2: auditableId: 7, etc.
+```
+
+### Performance Considerations
+
+```typescript
+// ❌ AVOID: Large bulk operations with auditing enabled
+await User.update(
+  { lastActive: new Date() },
+  { where: {} } // Updates ALL users - very expensive with auditing!
+);
+
+// ✅ PREFERRED: Batch processing for large datasets  
+const BATCH_SIZE = 100;
+const users = await User.findAll({ attributes: ['id'] });
+
+for (let i = 0; i < users.length; i += BATCH_SIZE) {
+  const batch = users.slice(i, i + BATCH_SIZE);
+  const ids = batch.map(u => u.id);
+  
+  await User.update(
+    { lastActive: new Date() },
+    { where: { id: { [Op.in]: ids } } }
+  );
+  
+  // Small batch = manageable SELECT overhead
+}
+
+// ✅ ALTERNATIVE: Disable auditing for performance-critical operations
+attachAuditHooks(User, {
+  auditEvents: [AuditEvent.CREATED, AuditEvent.DELETED] // Skip UPDATE events
+});
+```
+
+### onlyDirty Mode with Bulk Operations
+
+When `onlyDirty: true`, both old and new values contain only changed fields:
+
+```typescript
+// Configuration
+attachAuditHooks(User, { onlyDirty: true });
+
+// Update operation
+await User.update(
+  { phone: '555-NEW' },
+  { where: { id: [4, 7] } }
+);
+
+// Audit records will have:
+// oldValues: { phone: "555-OLD" }      // ← Only changed field
+// newValues: { phone: "555-NEW" }      // ← Only changed field
+// (name, email, etc. are excluded since they didn't change)
+```
+
+### Bulk Operation Context
+Use `RequestContext` to add metadata for bulk operations:
+
+```typescript
+await RequestContext.runWithContext(
+  {
+    actorableType: 'System',
+    actorableId: 'cleanup-job-001',
+    tags: { 
+      jobType: 'user-cleanup',
+      batchId: 'batch-2024-001' 
+    }
+  },
+  async () => {
+    await User.destroy({ 
+      where: { deletedAt: { [Op.lt]: new Date('2023-01-01') } }
+    });
+  }
+);
+```
+
 ## 📊 Database Schema
 
 ### Audit Table Structure
@@ -218,6 +399,87 @@ CREATE TABLE audits (
   "created_at": "2024-01-15T10:30:00Z"
 }
 ```
+
+## ⚠️ Performance & Limitations
+
+### Bulk Operations Performance Impact
+
+**Critical**: Bulk update and delete operations have significant performance implications:
+
+```typescript
+// This innocent-looking bulk update:
+await User.update({ lastActive: new Date() }, { where: { active: true } });
+
+// Actually performs TWO queries:
+// 1. SELECT * FROM users WHERE active = true;     // ← Additional overhead!
+// 2. UPDATE users SET lastActive = ? WHERE active = true;
+```
+
+**Why this happens:**
+- To create accurate audit trails, we need the old values before modification
+- Sequelize bulk operations don't provide access to the affected records
+- We must perform a `SELECT` query before each bulk `UPDATE`/`DELETE`
+
+**Performance guidelines:**
+
+| Dataset Size | Recommendation | Query Overhead |
+|--------------|----------------|----------------|
+| < 100 records | ✅ Safe to use | Minimal impact |
+| 100-1000 records | ⚠️ Monitor carefully | Moderate impact |
+| > 1000 records | ❌ Use batching or disable | Significant impact |
+
+### Recommended Patterns
+
+```typescript
+// ❌ Dangerous for large datasets
+await User.update({ status: 'verified' }, { where: {} }); // ALL users!
+
+// ✅ Batch processing for safety
+async function bulkUpdateWithBatching(updates: any, batchSize = 100) {
+  const userIds = await User.findAll({ 
+    attributes: ['id'],
+    where: { needsUpdate: true }
+  });
+  
+  for (let i = 0; i < userIds.length; i += batchSize) {
+    const batch = userIds.slice(i, i + batchSize);
+    const ids = batch.map(u => u.id);
+    
+    await User.update(updates, { 
+      where: { id: { [Op.in]: ids } } 
+    });
+  }
+}
+
+// ✅ Selective auditing for performance-critical models
+attachAuditHooks(MetricsLog, {
+  auditEvents: [AuditEvent.CREATED], // Only audit creation, skip updates/deletes
+});
+
+// ✅ Conditional auditing based on environment
+attachAuditHooks(User, {
+  auditEvents: process.env.NODE_ENV === 'production' 
+    ? [AuditEvent.CREATED, AuditEvent.DELETED]  // Skip updates in production
+    : [AuditEvent.CREATED, AuditEvent.UPDATED, AuditEvent.DELETED] // Full auditing in dev
+});
+```
+
+### Memory Considerations
+
+Large bulk operations can consume significant memory:
+
+```typescript
+// This could load thousands of records into memory:
+await User.update({ status: 'inactive' }, { 
+  where: { lastLogin: { [Op.lt]: oneYearAgo } } 
+});
+```
+
+**Mitigation strategies:**
+- Use specific WHERE clauses to limit affected records
+- Implement batch processing with reasonable batch sizes
+- Monitor memory usage during bulk operations
+- Consider using streaming for very large datasets
 
 ## 🛠️ Advanced Usage
 
@@ -316,46 +578,6 @@ const systemAudits = await AuditModel.findAll({
     created_at: { [Op.gte]: new Date(Date.now() - 24 * 60 * 60 * 1000) }
   }
 });
-```
-
-## 🔄 Migration from v1.1.x
-
-The v1.2.0 update introduces polymorphic fields. If upgrading from v1.1.x:
-
-### Option 1: Fresh Start (Recommended)
-1. Drop existing audit table: `DROP TABLE audits;`
-2. Update to v1.2.0
-3. Restart application (auto-creates new table)
-
-### Option 2: Manual Migration
-```sql
--- Add new polymorphic columns
-ALTER TABLE audits 
-  ADD COLUMN auditable_type VARCHAR(255),
-  ADD COLUMN auditable_id VARCHAR(255), 
-  ADD COLUMN actorable_type VARCHAR(255),
-  ADD COLUMN actorable_id VARCHAR(255);
-
--- Migrate data (example for User model)
-UPDATE audits SET 
-  auditable_type = 'User',
-  auditable_id = record_id,
-  actorable_type = 'User', 
-  actorable_id = actor_id;
-
--- Add constraints and indexes
-ALTER TABLE audits 
-  MODIFY auditable_type VARCHAR(255) NOT NULL,
-  MODIFY auditable_id VARCHAR(255) NOT NULL;
-
-CREATE INDEX idx_auditable ON audits (auditable_type, auditable_id);
-CREATE INDEX idx_actorable ON audits (actorable_type, actorable_id);
-
--- Drop old columns
-ALTER TABLE audits 
-  DROP COLUMN table_name,
-  DROP COLUMN record_id,
-  DROP COLUMN actor_id;
 ```
 
 ## 🧪 Testing

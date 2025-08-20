@@ -2,7 +2,7 @@
 
 import { Model, ModelCtor } from 'sequelize';
 import { RequestContext } from '../request-context.js';
-import { writeAudit } from '../utils/writeAudit.js';
+import { writeAudit, writeBulkAudit } from '../utils/writeAudit.js';
 import type { AuditConfig } from '../types.js';
 import { AuditEvent } from '../types.js';
 
@@ -171,5 +171,119 @@ export function attachAuditHooks<T extends Model>(
       config,
       globalConfig: globalAuditOptions,
     });
+  });
+
+  // After bulk create hook
+  model.addHook('afterBulkCreate', async (instances: T[]) => {
+    if (!shouldAuditEvent(AuditEvent.CREATED, config)) {
+      return;
+    }
+    
+    const context = RequestContext.getContext();
+    await writeBulkAudit({
+      event: 'created',
+      auditableType: modelName,
+      instances,
+      context,
+      config,
+      globalConfig: globalAuditOptions,
+      affectedCount: instances.length,
+    });
+  });
+
+  // Store records before bulk operations
+  let recordsToUpdate: T[] = [];
+  let recordsToDelete: T[] = [];
+
+  // Before bulk update hook - capture records that will be updated
+  model.addHook('beforeBulkUpdate', async (options: any) => {
+    if (!shouldAuditEvent(AuditEvent.UPDATED, config)) {
+      return;
+    }
+    
+    try {
+      // Find all records that match the where clause before they're updated
+      recordsToUpdate = await model.findAll({ where: options.where });
+    } catch (error) {
+      console.error('Failed to capture records before bulk update:', error);
+      recordsToUpdate = [];
+    }
+  });
+
+  // After bulk update hook
+  model.addHook('afterBulkUpdate', async (options: any) => {
+    if (!shouldAuditEvent(AuditEvent.UPDATED, config)) {
+      return;
+    }
+    
+    const context = RequestContext.getContext();
+    
+    // For onlyDirty: false, we need to fetch the complete updated records
+    let updatedRecords: T[] = [];
+    const onlyDirty = config.onlyDirty ?? globalAuditOptions?.onlyDirty ?? false;
+    
+    if (!onlyDirty && recordsToUpdate.length > 0) {
+      try {
+        // Fetch the updated records to get their complete state
+        const recordIds = recordsToUpdate.map(record => record.get ? record.get('id') : (record as any).id);
+        updatedRecords = await model.findAll({ where: { id: recordIds } as any });
+      } catch (error) {
+        console.error('Failed to fetch updated records for complete state:', error);
+        updatedRecords = [];
+      }
+    }
+    
+    await writeBulkAudit({
+      event: 'updated',
+      auditableType: modelName,
+      context,
+      config,
+      globalConfig: globalAuditOptions,
+      affectedCount: options.affectedRows || recordsToUpdate.length,
+      where: options.where,
+      newValues: options.attributes,
+      affectedRecords: recordsToUpdate,
+      updatedRecords: updatedRecords.length > 0 ? updatedRecords : undefined,
+    });
+    
+    // Clear the captured records
+    recordsToUpdate = [];
+  });
+
+  // Before bulk destroy hook - capture records that will be deleted
+  model.addHook('beforeBulkDestroy', async (options: any) => {
+    if (!shouldAuditEvent(AuditEvent.DELETED, config)) {
+      return;
+    }
+    
+    try {
+      // Find all records that match the where clause before they're deleted
+      recordsToDelete = await model.findAll({ where: options.where });
+    } catch (error) {
+      console.error('Failed to capture records before bulk delete:', error);
+      recordsToDelete = [];
+    }
+  });
+
+  // After bulk destroy hook
+  model.addHook('afterBulkDestroy', async (options: any) => {
+    if (!shouldAuditEvent(AuditEvent.DELETED, config)) {
+      return;
+    }
+    
+    const context = RequestContext.getContext();
+    await writeBulkAudit({
+      event: 'deleted',
+      auditableType: modelName,
+      context,
+      config,
+      globalConfig: globalAuditOptions,
+      affectedCount: options.affectedRows || recordsToDelete.length,
+      where: options.where,
+      affectedRecords: recordsToDelete,
+    });
+    
+    // Clear the captured records
+    recordsToDelete = [];
   });
 }
