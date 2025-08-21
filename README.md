@@ -17,14 +17,17 @@
 - 🗄️ **Multi-DB Support** - PostgreSQL, MySQL with proper indexing
 - 📦 **TypeScript Native** - Full type safety, zero runtime dependencies
 - 🚀 **Production Ready** - Battle-tested with comprehensive test suite
+- ✨ **Auto-Initialization** - Models decorated with `@Auditable` initialize automatically (NEW!)
+- 🎯 **Creator Relationships** - Built-in `include: ["creator"]` support for easy user tracking (NEW!)
 
-## 🆕 What's New in v2.0.0
+## 🆕 What's New in v3.0.0
 
-- **🔄 Bulk Operations Support**: Individual record tracking for `bulkCreate`, `bulkUpdate`, and `bulkDestroy`
-- **🎯 Enhanced onlyDirty Mode**: Improved dirty field detection for both individual and bulk operations
-- **⚡ Performance Optimizations**: Intelligent query handling with comprehensive performance guidelines
-- **🎭 Polymorphic Architecture**: Full support for multiple entity types and actor types
-- **📚 Comprehensive Documentation**: Complete performance guidelines and best practices
+- **✨ @Auditable Decorator**: Simple decorator-based setup with automatic initialization - no manual configuration needed
+- **🎯 Built-in Creator Relationships**: Automatic `include: ["creator"]` support to easily track who created any record
+- **⚙️ Smart Actor Configuration**: Configure `actorTypes` once in module setup for reliable polymorphic relationships
+- **🔄 Comprehensive Bulk Operations**: Full audit support for `bulkCreate`, `bulkUpdate`, and `bulkDestroy` with individual record tracking
+- **⚡ Enhanced Performance**: Intelligent query handling with configurable dirty field detection
+- **🎭 Full Polymorphic Support**: Track any entity type with any actor type seamlessly
 
 ## 📚 Table of Contents
 
@@ -33,7 +36,8 @@
 - [🚀 Quick Start](#-quick-start)
   - [Installation](#installation)
   - [Basic Setup](#basic-setup)
-  - [Enable Auditing for Models](#enable-auditing-for-models)
+  - [@Auditable Decorator Setup](#auditable-decorator-setup)
+  - [Creator Relationship Example](#creator-relationship-example)
 - [🔧 Configuration](#-configuration)
   - [Module Configuration](#module-configuration)
   - [Per-Model Configuration](#per-model-configuration)
@@ -83,13 +87,14 @@ import { AuditModule } from '@cleancode-id/nestjs-sequelize-auditor';
   imports: [
     SequelizeModule.forRoot(/* your db config */),
     AuditModule.forRoot({
-      autoSync: true,        // Auto-create audit table
-      onlyDirty: false,      // Log full state by default
+      autoSync: true,           // Auto-create audit table
+      onlyDirty: false,         // Log full state by default
+      actorTypes: ['User'],     // 🆕 Configure which models can be actors
       auth: {
-        type: 'passport',         // Use Passport.js authentication
-        userProperty: 'user',     // req.user
-        userIdField: 'id',        // req.user.id
-        actorModel: 'User',       // Actor model name (NEW!)
+        type: 'passport',       // Use Passport.js authentication
+        userProperty: 'user',   // req.user
+        userIdField: 'id',      // req.user.id
+        actorModel: 'User',     // Actor model name
       },
     }),
   ],
@@ -97,28 +102,73 @@ import { AuditModule } from '@cleancode-id/nestjs-sequelize-auditor';
 export class AppModule {}
 ```
 
-### Enable Auditing for Models
+### @Auditable Decorator Setup
+
+**Decorator-only approach** - Zero configuration, automatic initialization:
 
 ```typescript
-// user.service.ts  
-import { Injectable, OnModuleInit } from '@nestjs/common';
-import { attachAuditHooks, AuditEvent } from '@cleancode-id/nestjs-sequelize-auditor';
+// user.model.ts
+import { Auditable, AuditEvent } from '@cleancode-id/nestjs-sequelize-auditor';
 
+@Auditable({
+  exclude: ['password', 'createdAt', 'updatedAt'],
+  mask: ['ssn', 'creditCard'],
+  auditEvents: [AuditEvent.CREATED, AuditEvent.UPDATED, AuditEvent.DELETED],
+  enableCreatorRelationship: true,  // Enables include: ["creator"]
+})
+@Table({ tableName: 'users' })
+export class User extends Model {
+  @Column({ primaryKey: true, autoIncrement: true })
+  id: number;
+
+  @Column
+  name: string;
+
+  @Column
+  email: string;
+  
+  // 🎉 Automatically available after initialization:
+  // - audits: Audit[] relationship  
+  // - creator: User virtual field
+  // - creationAudit: Audit relationship
+}
+```
+
+### Creator Relationship Example
+
+One of the most powerful features is the built-in creator relationship that automatically tracks who created any record:
+
+```typescript
+// user.service.ts
 @Injectable()
-export class UserService implements OnModuleInit {
+export class UserService {
   constructor(@InjectModel(User) private userModel: typeof User) {}
 
-  onModuleInit() {
-    // Enable auditing for User model
-    attachAuditHooks(this.userModel, {
-      exclude: ['password', 'createdAt', 'updatedAt'],
-      mask: ['ssn', 'creditCard'],
-      auditEvents: [AuditEvent.CREATED, AuditEvent.UPDATED, AuditEvent.DELETED],
+  // Find user with creator information
+  async findUserWithCreator(id: number) {
+    return this.userModel.findByPk(id, {
+      include: ["creator"]  // ✨ Automatically includes the user who created this record
     });
   }
 
-  async createUser(userData: any) {
-    return this.userModel.create(userData); // ✅ Automatically audited!
+  // Find all users with their creators
+  async findAllWithCreators() {
+    return this.userModel.findAll({
+      include: ["creator"]
+    });
+  }
+}
+
+// Example response:
+{
+  "id": 123,
+  "name": "John Doe",
+  "email": "john@example.com", 
+  "createdAt": "2024-01-15T10:30:00Z",
+  "creator": {
+    "id": 456,
+    "name": "Admin User",
+    "email": "admin@example.com"
   }
 }
 ```
@@ -135,6 +185,7 @@ interface AuditModuleOptions {
   alterTable?: boolean;     // Allow table alterations (default: false)
   isGlobal?: boolean;       // Make module global (default: false)
   onlyDirty?: boolean;      // Global dirty field setting (default: false)
+  actorTypes?: string[];    // 🆕 Models that can be actors (default: ['User'])
   auth?: AuthConfig;        // Authentication configuration
 }
 
@@ -148,7 +199,16 @@ interface AuthConfig {
 
 ### Per-Model Configuration
 
+#### @Auditable Decorator Options
+
 ```typescript
+interface AuditableConfig extends AuditConfig {
+  enableCreatorRelationship?: boolean;     // Enable include: ["creator"] (default: true)
+  enableAuditsRelationship?: boolean;      // Enable include: ["audits"] (default: true)
+  enableCreationAuditRelationship?: boolean; // Enable include: ["creationAudit"] (default: true)
+  verbose?: boolean;                       // Enable debug logging (default: false)
+}
+
 interface AuditConfig {
   exclude?: string[];         // Fields to completely skip
   mask?: string[];            // Fields to show as '***MASKED***'
@@ -161,41 +221,40 @@ interface AuditConfig {
 
 ### Different Entity Types
 
-The audit system now supports tracking any model type using Sequelize polymorphic conventions:
+The audit system supports tracking any model type using the `@Auditable` decorator:
 
 ```typescript
 // Track different entity types
-attachAuditHooks(User);        // auditable_type: "User"
-attachAuditHooks(Product);     // auditable_type: "Product"  
-attachAuditHooks(Order);       // auditable_type: "Order"
+@Auditable()
+@Table()
+export class User extends Model {}        // auditable_type: "User"
+
+@Auditable()
+@Table()
+export class Product extends Model {}     // auditable_type: "Product"  
+
+@Auditable()
+@Table()
+export class Order extends Model {}       // auditable_type: "Order"
 ```
 
-### Different Actor Types
+#### Creator Relationship Usage
 
-Configure different actor models for different parts of your application:
+With proper `actorTypes` configuration, you get automatic creator resolution:
 
 ```typescript
-// User-facing API
-AuditModule.forRoot({
-  auth: { actorModel: 'User' }     // actorable_type: "User"
+// Find post with creator information
+const post = await Post.findByPk(1, {
+  include: ["creator"]  // ✨ Automatically resolves the user who created this post
 });
 
-// Admin panel  
-AuditModule.forRoot({
-  auth: { actorModel: 'Admin' }    // actorable_type: "Admin" 
-});
+console.log(post.creator); // { id: 1, name: "John Doe", email: "john@example.com" }
 
-// System operations
-await RequestContext.runWithContext(
-  { 
-    actorableType: 'System',
-    actorableId: 'background-job-1',
-    tags: { jobType: 'data-cleanup' }
-  },
-  async () => {
-    await User.bulkUpdate(cleanupData, { where: { inactive: true } });
-  }
-);
+// Works with any configured actor type
+const auditRecord = await AuditModel.findOne({
+  where: { actorable_type: 'Admin' },
+  include: ["actor_admin"]  // Direct actor relationship
+});
 ```
 
 ## 📦 Bulk Operations Support
@@ -452,16 +511,20 @@ async function bulkUpdateWithBatching(updates: any, batchSize = 100) {
 }
 
 // ✅ Selective auditing for performance-critical models
-attachAuditHooks(MetricsLog, {
+@Auditable({
   auditEvents: [AuditEvent.CREATED], // Only audit creation, skip updates/deletes
-});
+})
+@Table()
+export class MetricsLog extends Model {}
 
 // ✅ Conditional auditing based on environment
-attachAuditHooks(User, {
+@Auditable({
   auditEvents: process.env.NODE_ENV === 'production' 
     ? [AuditEvent.CREATED, AuditEvent.DELETED]  // Skip updates in production
     : [AuditEvent.CREATED, AuditEvent.UPDATED, AuditEvent.DELETED] // Full auditing in dev
-});
+})
+@Table()
+export class User extends Model {}
 ```
 
 ### Memory Considerations
@@ -491,6 +554,7 @@ AuditModule.forRootAsync({
   useFactory: (config: ConfigService) => ({
     autoSync: config.get('AUDIT_ENABLED', true),
     onlyDirty: config.get('AUDIT_ONLY_DIRTY', false),
+    actorTypes: config.get('AUDIT_ACTOR_TYPES', 'User').split(','), // 🆕 Comma-separated list
     auth: {
       actorModel: config.get('AUDIT_ACTOR_MODEL', 'User'),
       userIdField: config.get('AUTH_USER_ID_FIELD', 'id'),
@@ -498,6 +562,10 @@ AuditModule.forRootAsync({
   }),
   inject: [ConfigService],
 });
+
+// Environment variables:
+// AUDIT_ACTOR_TYPES=User,Admin,ApiClient
+// AUDIT_ACTOR_MODEL=User
 ```
 
 ### Manual Context Management
@@ -537,18 +605,22 @@ await RequestContext.runWithContext(
 
 ```typescript
 // Only log important changes  
-attachAuditHooks(User, {
+@Auditable({
   exclude: ['id', 'createdAt', 'updatedAt', 'lastLogin'],
   mask: ['password', 'ssn', 'creditCardNumber'],
   onlyDirty: true,  // Only changed fields
-});
+})
+@Table()
+export class User extends Model {}
 
 // Security-sensitive model
-attachAuditHooks(PaymentMethod, {
+@Auditable({
   exclude: ['createdAt', 'updatedAt'],
   mask: ['cardNumber', 'cvv', 'accountNumber'],
   auditEvents: [AuditEvent.CREATED, AuditEvent.DELETED], // No updates logged
-});
+})
+@Table()
+export class PaymentMethod extends Model {}
 ```
 
 ### Querying Audit Data

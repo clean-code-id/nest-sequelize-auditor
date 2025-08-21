@@ -1,7 +1,7 @@
 // Utility function to write audit records to the database
 
 import type { AuditContext, AuditConfig, AuditModuleOptions } from '../types.js';
-import type { ModelCtor, Model } from 'sequelize';
+import type { ModelStatic, Model } from 'sequelize';
 
 interface WriteAuditOptions {
   event: 'created' | 'updated' | 'deleted' | 'restored';
@@ -29,10 +29,14 @@ interface WriteBulkAuditOptions {
 }
 
 // Global audit model reference - will be set by the consumer
-let globalAuditModel: ModelCtor<Model> | null = null;
+let globalAuditModel: ModelStatic<Model> | null = null;
 
-export function setAuditModel(auditModel: ModelCtor<Model>): void {
+export function setAuditModel(auditModel: ModelStatic<Model>): void {
   globalAuditModel = auditModel;
+}
+
+export function getAuditModel(): ModelStatic<Model> | null {
+  return globalAuditModel;
 }
 
 export async function writeAudit(options: WriteAuditOptions): Promise<void> {

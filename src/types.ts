@@ -53,6 +53,13 @@ export interface AuditModuleOptions {
   isGlobal?: boolean;
   auth?: AuthConfig;
   onlyDirty?: boolean;
+  /**
+   * List of model names that can act as actors in audit records
+   * These models will have dynamic relationships created with the audit model
+   * @example ['User', 'Admin', 'ApiClient']
+   * @default ['User']
+   */
+  actorTypes?: string[];
 }
 
 export interface AuthConfig {

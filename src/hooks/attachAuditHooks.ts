@@ -32,6 +32,13 @@ export function setGlobalAuditOptions(options: any): void {
 }
 
 /**
+ * Gets the global audit options (used by decorators)
+ */
+export function getGlobalAuditOptions(): any {
+  return globalAuditOptions;
+}
+
+/**
  * Ensures the audit model is initialized exactly once across the entire application.
  * Uses the configuration from AuditModule.forRoot() to determine behavior.
  */
