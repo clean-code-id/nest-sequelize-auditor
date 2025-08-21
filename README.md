@@ -2,7 +2,8 @@
 
 🔍 **Polymorphic audit trails for NestJS + Sequelize** with zero configuration and full request context tracking.
 
-[![npm version](https://badge.fury.io/js/@cleancode-id%2Fnestjs-sequelize-auditor.svg)](https://badge.fury.io/js/@cleancode-id%2Fnestjs-sequelize-auditor)
+![npm version](https://img.shields.io/npm/v/@cleancode-id/nestjs-sequelize-auditor) 
+![npm_downloads](https://img.shields.io/npm/dm/@cleancode-id/nestjs-sequelize-auditor)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## ✨ Features
