@@ -295,6 +295,7 @@ function setupCreatorRelationship(model: any, AuditModel: any): void {
     const originalFindAll = model.findAll;
     const originalFindOne = model.findOne;
     const originalFindByPk = model.findByPk;
+    const originalFindAndCountAll = model.findAndCountAll;
 
     // Transform include: ['creator'] to include creationAudit with polymorphic actor
     const transformCreatorInclude = (options: any) => {
@@ -364,46 +365,81 @@ function setupCreatorRelationship(model: any, AuditModel: any): void {
       return options;
     };
 
+    // Helper function to filter object fields
+    const filterFields = (obj: any, fields: string[]) => {
+      if (!obj || typeof obj !== 'object') return obj;
+      
+      const filtered: any = {};
+      fields.forEach(field => {
+        if (Object.prototype.hasOwnProperty.call(obj, field)) {
+          filtered[field] = obj[field];
+        }
+      });
+      return filtered;
+    };
+
+    // Helper function to get current creator fields configuration  
+    const getCreatorFields = async () => {
+      let creatorFields = ['id', 'name', 'email']; // Default
+      try {
+        // Get global audit options the same way setupActorRelationship does
+        const { getGlobalAuditOptions } = await import('../hooks/attachAuditHooks.js');
+        const globalOptions = getGlobalAuditOptions();
+        creatorFields = globalOptions?.creatorFields || creatorFields;
+      } catch {
+        // Keep default if unable to get global options
+      }
+      return creatorFields;
+    };
+
     // Add afterFind hook to populate creator from creationAudit.actor
     model.addHook('afterFind', async (result: any, options: any) => {
       if (!options._populateCreator || !result) return;
       
       const instances = Array.isArray(result) ? result : [result];
       
-      instances.forEach((instance: any) => {
-        if (instance && instance.creationAudit) {
-          // Look for any populated actor relationship (actor_user, actor_admin, etc.)
-          let foundActor: any = null;
-          
-          // Check all possible actor fields
-          Object.keys(instance.creationAudit.dataValues || {}).forEach(key => {
-            if (key.startsWith('actor_') && instance.creationAudit[key]) {
-              foundActor = instance.creationAudit[key];
+      for (const instance of instances) {
+        if (instance) {
+          if (instance.creationAudit) {
+            // Look for any populated actor relationship (actor_user, actor_admin, etc.)
+            let foundActor: any = null;
+            
+            // Check all possible actor fields
+            Object.keys(instance.creationAudit.dataValues || {}).forEach(key => {
+              if (key.startsWith('actor_') && instance.creationAudit[key]) {
+                foundActor = instance.creationAudit[key];
+              }
+            });
+            
+            // Also check direct properties (not just dataValues)
+            Object.keys(instance.creationAudit).forEach(key => {
+              if (key.startsWith('actor_') && instance.creationAudit[key] && !foundActor) {
+                foundActor = instance.creationAudit[key];
+              }
+            });
+            
+            if (foundActor) {
+              // Filter actor fields based on global configuration
+              const currentCreatorFields = await getCreatorFields();
+              const filteredCreator = filterFields(foundActor.dataValues || foundActor, currentCreatorFields);
+              instance.dataValues.creator = filteredCreator;
+              instance.creator = filteredCreator;
+            } else {
+              // If creationAudit exists but no actor, set creator to null
+              instance.dataValues.creator = null;
+              instance.creator = null;
             }
-          });
-          
-          // Also check direct properties (not just dataValues)
-          Object.keys(instance.creationAudit).forEach(key => {
-            if (key.startsWith('actor_') && instance.creationAudit[key] && !foundActor) {
-              foundActor = instance.creationAudit[key];
-            }
-          });
-          
-          if (foundActor) {
-            // Map the found actor to creator field
-            instance.dataValues.creator = foundActor;
-            instance.creator = foundActor;
           } else {
-            // If creationAudit exists but no actor, set creator to null
+            // If no creationAudit, set creator to null
             instance.dataValues.creator = null;
             instance.creator = null;
           }
           
-          // Remove creationAudit from response since we only want the creator field
+          // Always remove creationAudit from response since we only want the creator field
           delete instance.dataValues.creationAudit;
           delete instance.creationAudit;
         }
-      });
+      }
     });
 
     // Override findAll
@@ -422,6 +458,12 @@ function setupCreatorRelationship(model: any, AuditModel: any): void {
     model.findByPk = function(id: any, options: any = {}) {
       const transformedOptions = transformCreatorInclude(options);
       return originalFindByPk.call(this, id, transformedOptions);
+    };
+
+    // Override findAndCountAll
+    model.findAndCountAll = function(options: any = {}) {
+      const transformedOptions = transformCreatorInclude(options);
+      return originalFindAndCountAll.call(this, transformedOptions);
     };
 
     console.log(`✅ Set up creator relationship for ${model.name}`);

@@ -60,6 +60,15 @@ export interface AuditModuleOptions {
    * @default ['User']
    */
   actorTypes?: string[];
+  
+  /**
+   * Specify which fields to include when fetching creator data globally
+   * This applies to all models using the creator relationship
+   * @default ['id', 'name', 'email'] - excludes sensitive fields like password
+   * @example ['id', 'name'] - only include id and name
+   * @example ['id', 'name', 'email', 'phone'] - include multiple fields
+   */
+  creatorFields?: string[];
 }
 
 export interface AuthConfig {
