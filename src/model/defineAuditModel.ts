@@ -160,6 +160,7 @@ export function defineAuditModel(sequelize: Sequelize, options: AuditModelOption
     {
       tableName: options.tableName || 'audits',
       timestamps: false,
+      underscored: true,
     }
   );
 
