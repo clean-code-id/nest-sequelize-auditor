@@ -245,7 +245,7 @@ function setupAuditRelationships<T extends Model>(
     model.hasMany(AuditModel, {
       foreignKey: 'auditableId',
       scope: {
-        auditableType: model.name,
+        auditable_type: model.name,
       },
       constraints: false,
       as: 'audits',
@@ -257,7 +257,7 @@ function setupAuditRelationships<T extends Model>(
     model.hasOne(AuditModel, {
       foreignKey: 'auditableId',
       scope: {
-        auditableType: model.name,
+        auditable_type: model.name,
         event: 'created',
       },
       constraints: false,
