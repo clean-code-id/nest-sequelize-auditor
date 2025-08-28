@@ -5,27 +5,9 @@ import type { AuditConfig } from '../types.js';
 
 /**
  * Configuration for the @Auditable decorator
- * Extends the base AuditConfig with additional relationship options
+ * Extends the base AuditConfig with additional options
  */
 export interface AuditableConfig extends AuditConfig {
-  /**
-   * Enable automatic 'creator' virtual field that returns the user who created this record
-   * @default true
-   */
-  enableCreatorRelationship?: boolean;
-  
-  /**
-   * Enable automatic 'audits' relationship that returns all audit records for this model
-   * @default true  
-   */
-  enableAuditsRelationship?: boolean;
-  
-  /**
-   * Enable automatic 'creationAudit' relationship that returns the creation audit record
-   * @default true
-   */
-  enableCreationAuditRelationship?: boolean;
-  
   /**
    * Enable verbose logging for debugging audit setup
    * @default false
@@ -170,22 +152,12 @@ export async function initializeAuditableModel<T extends Model>(model: ModelStat
     return;
   }
 
-  const {
-    enableCreatorRelationship = true,
-    enableAuditsRelationship = true,
-    enableCreationAuditRelationship = true,
-    ...auditHooksConfig
-  } = auditableConfig;
-
   // First, attach the audit hooks (this creates the audit model asynchronously)
-  attachAuditHooks(model, auditHooksConfig);
+  attachAuditHooks(model, auditableConfig);
 
   // Wait for audit model to be ready, then create relationships
-  await waitForAuditModelAndSetupRelationships(model, {
-    enableCreatorRelationship,
-    enableAuditsRelationship,
-    enableCreationAuditRelationship,
-  });
+  // All @Auditable models get audit relationships by default
+  await waitForAuditModelAndSetupRelationships(model);
 }
 
 /**
@@ -193,12 +165,7 @@ export async function initializeAuditableModel<T extends Model>(model: ModelStat
  * This ensures proper timing when audit model initialization is async
  */
 async function waitForAuditModelAndSetupRelationships<T extends Model>(
-  model: ModelStatic<T>,
-  options: {
-    enableCreatorRelationship: boolean;
-    enableAuditsRelationship: boolean;
-    enableCreationAuditRelationship: boolean;
-  }
+  model: ModelStatic<T>
 ): Promise<void> {
   // Wait for audit model to be available (max 5 seconds)
   let attempts = 0;
@@ -207,7 +174,7 @@ async function waitForAuditModelAndSetupRelationships<T extends Model>(
   while (attempts < maxAttempts) {
     const AuditModel = getAuditModel();
     if (AuditModel) {
-      setupAuditRelationships(model, options);
+      setupAuditRelationships(model);
       console.log(`✅ Set up audit relationships for ${model.name}`);
       return;
     }
@@ -223,15 +190,9 @@ async function waitForAuditModelAndSetupRelationships<T extends Model>(
 /**
  * Sets up audit relationships for a model after the audit hooks are attached
  * This must be called after attachAuditHooks creates the audit model
+ * All @Auditable models automatically get: audits, creationAudit, and creator relationships
  */
-function setupAuditRelationships<T extends Model>(
-  model: ModelStatic<T>,
-  options: {
-    enableCreatorRelationship: boolean;
-    enableAuditsRelationship: boolean;
-    enableCreationAuditRelationship: boolean;
-  }
-): void {
+function setupAuditRelationships<T extends Model>(model: ModelStatic<T>): void {
   // Get the audit model that was created by attachAuditHooks
   const AuditModel = getAuditModel();
   
@@ -240,35 +201,29 @@ function setupAuditRelationships<T extends Model>(
     return;
   }
 
-  if (options.enableAuditsRelationship) {
-    // Add audits relationship - hasMany to all audit records for this model
-    model.hasMany(AuditModel, {
-      foreignKey: 'auditableId',
-      scope: {
-        auditable_type: model.name,
-      },
-      constraints: false,
-      as: 'audits',
-    });
-  }
+  // Add audits relationship - hasMany to all audit records for this model
+  model.hasMany(AuditModel, {
+    foreignKey: 'auditableId',
+    scope: {
+      auditable_type: model.name,
+    },
+    constraints: false,
+    as: 'audits',
+  });
 
-  if (options.enableCreationAuditRelationship) {
-    // Add creationAudit relationship - hasOne to the creation audit record
-    model.hasOne(AuditModel, {
-      foreignKey: 'auditableId',
-      scope: {
-        auditable_type: model.name,
-        event: 'created',
-      },
-      constraints: false,
-      as: 'creationAudit',
-    });
-  }
+  // Add creationAudit relationship - hasOne to the creation audit record
+  model.hasOne(AuditModel, {
+    foreignKey: 'auditableId',
+    scope: {
+      auditable_type: model.name,
+      event: 'created',
+    },
+    constraints: false,
+    as: 'creationAudit',
+  });
 
   // Set up creator relationship - virtual field that gets the user who created this record
-  if (options.enableCreatorRelationship) {
-    setupCreatorRelationship(model, AuditModel);
-  }
+  setupCreatorRelationship(model, AuditModel);
 
   // Set up audit -> actor relationship for nested includes
   // This allows accessing post.creationAudit.actor or post.audits[0].actor
