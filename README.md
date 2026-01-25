@@ -312,7 +312,7 @@ CREATE TABLE audits (
 
 - **Node.js** 16+
 - **NestJS** 10+ or 11+
-- **Sequelize** 6+ 
+- **Sequelize** 6+
 - **sequelize-typescript** 2+
 - **Database**: PostgreSQL or MySQL
 

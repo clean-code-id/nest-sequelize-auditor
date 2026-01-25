@@ -1,6 +1,6 @@
 // Helper function to create audit trail model with Sequelize
 
-import { Model, DataTypes, Sequelize } from 'sequelize';
+import { Model, DataTypes, Sequelize, ModelStatic } from 'sequelize';
 import { Table, Column, PrimaryKey, AutoIncrement, CreatedAt } from 'sequelize-typescript';
 import type { AuditRecord, AuditModelOptions } from '../types.js';
 
@@ -36,13 +36,13 @@ export class AuditModel extends Model<AuditRecord> implements AuditRecord {
     type: DataTypes.JSON,
     allowNull: true,
   })
-  oldValues?: Record<string, any>;
+  oldValues?: Record<string, unknown>;
 
   @Column({
     type: DataTypes.JSON,
     allowNull: true,
   })
-  newValues?: Record<string, any>;
+  newValues?: Record<string, unknown>;
 
   @Column({
     type: DataTypes.STRING,
@@ -78,7 +78,7 @@ export class AuditModel extends Model<AuditRecord> implements AuditRecord {
     type: DataTypes.JSON,
     allowNull: true,
   })
-  tags?: Record<string, any>;
+  tags?: Record<string, unknown>;
 
   @CreatedAt
   @Column({
@@ -88,7 +88,7 @@ export class AuditModel extends Model<AuditRecord> implements AuditRecord {
   createdAt!: Date;
 }
 
-export function defineAuditModel(sequelize: Sequelize, options: AuditModelOptions = {}): any {
+export function defineAuditModel(sequelize: Sequelize, options: AuditModelOptions = {}): ModelStatic<Model> {
   // Define audit model using raw Sequelize with proper snake_case column names
   const AuditModel = sequelize.define(
     options.tableName || 'audits',

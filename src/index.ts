@@ -6,5 +6,4 @@ export * from './interceptors/RequestContextInterceptor.js';
 export * from './decorators/auditable.decorator.js';
 export * from './audit.module.js';
 export * from './services/audit.service.js';
-export * from './utils/migration.js';
 export { getAuditModel } from './utils/writeAudit.js';
